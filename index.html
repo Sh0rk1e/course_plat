@@ -1,14 +1,36 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="Secure video learning platform powered by Firebase." />
-    <meta name="referrer" content="strict-origin-when-cross-origin" />
-    <title>Course Platform</title>
+    <title>My SPA Application</title>
+
+    <!-- SPA GitHub Pages Redirect Resolver Script -->
+    <script>
+      (function() {
+        var q = window.location.search;
+        if (q && q.indexOf('?p=') === 0) {
+          var parser = document.createElement('a');
+          parser.href = q.slice(3).replace(/~and~/g, '&');
+          
+          var path = parser.pathname;
+          var query = parser.search;
+          var hash = parser.hash;
+
+          window.history.replaceState(
+            null,
+            null,
+            path + query + hash
+          );
+        }
+      })();
+    </script>
+
+    <!-- Your standard stylesheets or Vite/Webpack bundle links go here -->
   </head>
   <body>
     <div id="root"></div>
-    <script type="module" src="/src/main.jsx"></script>
+    <!-- Main entry point for your JS/React/Vue application -->
+    <script type="module" src="/src/main.js"></script>
   </body>
 </html>
