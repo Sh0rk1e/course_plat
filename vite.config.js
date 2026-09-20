@@ -3,7 +3,7 @@ import react from '@vitejs/plugin-react';
 
 export default defineConfig({
   plugins: [react()],
-  base: '/course_plat/',
+  base: '/course_plat/', // Must match your GitHub repository name exactly
   build: {
     sourcemap: false,
   },
