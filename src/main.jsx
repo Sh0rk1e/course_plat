@@ -26,7 +26,6 @@ import './styles.css';
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
-    {/* basename MUST match your GitHub repository name exactly */}
     <BrowserRouter basename="/course_plat">
       <App />
     </BrowserRouter>
