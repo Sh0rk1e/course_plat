@@ -1,0 +1,16 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <script>
+      // GitHub Pages SPA fallback: preserve the requested path/query/hash
+      // and let index.html restore the route.
+      const path = location.pathname;
+      const repo = path.split('/').filter(Boolean)[0];
+      const base = repo ? '/' + repo + '/' : '/';
+      sessionStorage.redirect = location.href;
+      location.replace(base);
+    </script>
+  </head>
+  <body></body>
+</html>

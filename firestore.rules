@@ -1,0 +1,54 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isAnonymous() {
+      return signedIn()
+        && request.auth.token.firebase.sign_in_provider == "anonymous";
+    }
+
+    function isAdmin() {
+      return signedIn()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "admin";
+    }
+
+    function isRegisteredUser() {
+      return signedIn() && !isAnonymous();
+    }
+
+    match /users/{userId} {
+      allow create: if signedIn()
+        && request.auth.uid == userId
+        && request.resource.data.role == "user"
+        && request.resource.data.email == request.auth.token.email;
+
+      allow read: if signedIn()
+        && (request.auth.uid == userId || isAdmin());
+
+      allow update: if signedIn()
+        && request.auth.uid == userId
+        && request.resource.data.role == resource.data.role;
+
+      allow delete: if isAdmin();
+    }
+
+    match /videos/{videoId} {
+      // Guests may retrieve ONLY the explicitly marked intro lesson.
+      // Registered users and admins may retrieve all lesson metadata.
+      allow read: if signedIn()
+        && (
+          isAdmin()
+          || isRegisteredUser()
+          || (isAnonymous() && resource.data.isIntro == true)
+        );
+
+      allow create, update, delete: if isAdmin();
+    }
+  }
+}
