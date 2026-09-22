@@ -3,6 +3,7 @@ import {
   addDoc, collection, deleteDoc, doc, onSnapshot, updateDoc, writeBatch
 } from 'firebase/firestore';
 import { db } from '../firebase';
+import { inferDateFromTitle, lessonDateKey } from '../dateUtils';
 
 const initialForm = {
   title: '', lessonDate: '', youtubeId: '', videoId: '', videoUrl: '',
@@ -19,7 +20,7 @@ function dateLabel(dateKey) {
 }
 
 function sortLessons(a, b) {
-  const dateCompare = (a.lessonDate || a.date || '').localeCompare(b.lessonDate || b.date || '');
+  const dateCompare = lessonDateKey(a).localeCompare(lessonDateKey(b));
   if (dateCompare !== 0) return dateCompare;
   return (Number(a.order) || 0) - (Number(b.order) || 0);
 }
@@ -44,12 +45,12 @@ export default function AdminPanel() {
     return unsubscribe;
   }, []);
 
-  const dates = useMemo(() => [...new Set(videos.map(v => v.lessonDate || v.date || '').filter(Boolean))].sort(), [videos]);
+  const dates = useMemo(() => [...new Set(videos.map(lessonDateKey).filter(Boolean))].sort(), [videos]);
 
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase();
     return videos.filter(v => {
-      const date = v.lessonDate || v.date || '';
+      const date = lessonDateKey(v);
       const matchesDate = dateFilter === 'all' || date === dateFilter;
       const haystack = `${v.title || ''} ${v.description || ''} ${v.videoId || ''} ${v.youtubeId || ''} ${v.videoUrl || ''}`.toLowerCase();
       return matchesDate && (!term || haystack.includes(term));
@@ -59,7 +60,7 @@ export default function AdminPanel() {
   const grouped = useMemo(() => {
     const map = new Map();
     filtered.forEach(v => {
-      const key = v.lessonDate || v.date || '';
+      const key = lessonDateKey(v);
       if (!map.has(key)) map.set(key, []);
       map.get(key).push(v);
     });
@@ -79,7 +80,7 @@ export default function AdminPanel() {
     setEditingId(v.id);
     setForm({
       title: v.title || '',
-      lessonDate: v.lessonDate || v.date || '',
+      lessonDate: v.lessonDate || v.date || inferDateFromTitle(v.title || ''),
       youtubeId: v.youtubeId || '',
       videoId: v.videoId || '',
       videoUrl: v.videoUrl || '',
@@ -230,7 +231,7 @@ export default function AdminPanel() {
         <form className="panel" onSubmit={submit}>
           <h2>{editingId ? 'Edit lesson' : 'Add lesson'}</h2>
           <label>Lesson title<input name="title" value={form.title} onChange={change} required /></label>
-          <label>Lesson date <span className="hint">Creates the learner-facing day folder.</span><input name="lessonDate" type="date" value={form.lessonDate} onChange={change} /></label>
+          <label>Lesson date <span className="hint">Optional override. If empty, the date is read automatically from the title.</span><input name="lessonDate" type="date" value={form.lessonDate} onChange={change} /></label>
           <label>Lesson order <span className="hint">Order within the selected day</span><input name="order" type="number" min="1" step="1" value={form.order} onChange={change} required /></label>
           <label>YouTube ID <span className="hint">(provider = youtube)</span><input name="youtubeId" value={form.youtubeId} onChange={change} placeholder="dQw4w9WgXcQ" /></label>
           <label>Cloudflare Stream ID <span className="hint">(provider = cloudflare)</span><input name="videoId" value={form.videoId} onChange={change} placeholder="Stream video UID" /></label>
@@ -247,7 +248,7 @@ export default function AdminPanel() {
 
         <div className="panel">
           <div className="admin-toolbar">
-            <div><h2>Lesson library</h2><p className="muted">Select lessons with the checkboxes, then assign one date to all of them.</p></div>
+            <div><h2>Lesson library</h2><p className="muted">Dates are detected automatically from names like <strong>02.09.26 програмування 1</strong>. You can still select lessons and assign a different date.</p></div>
             <button className="button button-small button-secondary" type="button" onClick={toggleAll} disabled={!filtered.length}>
               {filtered.length && filtered.every(v => selected.has(v.id)) ? 'Clear selection' : 'Select all'}
             </button>
@@ -290,7 +291,7 @@ export default function AdminPanel() {
                         <input type="checkbox" checked={selected.has(v.id)} onChange={() => toggle(v.id)} aria-label={`Select ${v.title}`} />
                         <div className="admin-item-copy">
                           <strong>{v.order}. {v.title}</strong>
-                          <small>{v.videoUrl || v.videoId || v.youtubeId || 'No video source'}{v.isIntro ? ' · Guest intro' : ''}</small>
+                          <small>{v.videoUrl || v.videoId || v.youtubeId || 'No video source'}{v.isIntro ? ' · Guest intro' : ''}{!v.lessonDate && !v.date && inferDateFromTitle(v.title || '') ? ' · date from title' : ''}</small>
                         </div>
                         <div className="button-row">
                           <button className="button button-small button-secondary" type="button" onClick={() => edit(v)}>Edit</button>

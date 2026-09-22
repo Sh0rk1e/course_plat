@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { collection, onSnapshot, query, where } from 'firebase/firestore';
 import { db } from '../firebase';
 import { getPlaybackSource, getVideoProvider } from '../videoProvider';
+import { lessonDateKey } from '../dateUtils';
 
 function formatDate(dateKey) {
   if (!dateKey) return 'Unscheduled';
@@ -16,7 +17,7 @@ function formatDate(dateKey) {
 }
 
 function dateKey(video) {
-  return video.lessonDate || video.date || '';
+  return lessonDateKey(video);
 }
 
 function VideoCard({ video, locked, user }) {
@@ -134,7 +135,7 @@ export default function VideoGallery({ user }) {
           <p className="muted">
             {user.isAnonymous
               ? 'Guest preview: the introduction is available.'
-              : `Choose a lesson day below. Provider: ${getVideoProvider()}.`}
+              : `Choose a lesson day below. Dates are read automatically from lesson names when needed. Provider: ${getVideoProvider()}.`}
           </p>
         </div>
       </div>
