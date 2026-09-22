@@ -152,7 +152,7 @@ export default function VideoGallery({ user }) {
                 key={group.key || 'unscheduled'}
                 onClick={() => setSelectedDate(group.key)}
               >
-                <span className="folder-icon">📁</span>
+                <span className="folder-icon" aria-hidden="true" />
                 <span className="day-folder-copy">
                   <strong>{formatDate(group.key)}</strong>
                   <small>{group.items.length} {group.items.length === 1 ? 'lesson' : 'lessons'}</small>
