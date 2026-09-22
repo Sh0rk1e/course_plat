@@ -1,7 +1,23 @@
-import { useEffect, useState } from 'react';
-import { collection, onSnapshot, orderBy, query } from 'firebase/firestore';
+import { useEffect, useMemo, useState } from 'react';
+import { collection, onSnapshot, query, where } from 'firebase/firestore';
 import { db } from '../firebase';
 import { getPlaybackSource, getVideoProvider } from '../videoProvider';
+
+function formatDate(dateKey) {
+  if (!dateKey) return 'Unscheduled';
+  const date = new Date(`${dateKey}T12:00:00`);
+  if (Number.isNaN(date.getTime())) return dateKey;
+  return new Intl.DateTimeFormat(undefined, {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric',
+  }).format(date);
+}
+
+function dateKey(video) {
+  return video.lessonDate || video.date || '';
+}
 
 function VideoCard({ video, locked, user }) {
   const [playback, setPlayback] = useState(null);
@@ -10,6 +26,8 @@ function VideoCard({ video, locked, user }) {
   useEffect(() => {
     if (locked) return;
     let cancelled = false;
+    setPlayback(null);
+    setError('');
     getPlaybackSource(video, user).then(source => {
       if (!cancelled) setPlayback(source);
     }).catch(err => {
@@ -59,10 +77,13 @@ function VideoCard({ video, locked, user }) {
 
 export default function VideoGallery({ user }) {
   const [videos, setVideos] = useState([]);
+  const [selectedDate, setSelectedDate] = useState(null);
   const [error, setError] = useState('');
 
   useEffect(() => {
-    const q = query(collection(db, 'videos'), orderBy('order', 'asc'));
+    const q = user.isAnonymous
+      ? query(collection(db, 'videos'), where('isIntro', '==', true))
+      : query(collection(db, 'videos'));
     return onSnapshot(q, snapshot => {
       setVideos(snapshot.docs.map(d => ({ id: d.id, ...d.data() })));
       setError('');
@@ -72,17 +93,48 @@ export default function VideoGallery({ user }) {
     });
   }, []);
 
-  const sorted = [...videos].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+  const sorted = useMemo(() => [...videos].sort((a, b) => {
+    const dateCompare = dateKey(a).localeCompare(dateKey(b));
+    if (dateCompare !== 0) return dateCompare;
+    return (Number(a.order) || 0) - (Number(b.order) || 0);
+  }), [videos]);
+
+  const groups = useMemo(() => {
+    const map = new Map();
+    sorted.forEach(video => {
+      const key = dateKey(video);
+      if (!map.has(key)) map.set(key, []);
+      map.get(key).push(video);
+    });
+    return [...map.entries()]
+      .sort(([a], [b]) => {
+        if (!a) return 1;
+        if (!b) return -1;
+        return b.localeCompare(a);
+      })
+      .map(([key, items]) => ({ key, items }));
+  }, [sorted]);
+
+  useEffect(() => {
+    if (selectedDate === null && groups.length) setSelectedDate(groups[0].key);
+    if (selectedDate !== null && groups.length && !groups.some(g => g.key === selectedDate)) {
+      setSelectedDate(groups[0].key);
+    }
+  }, [groups, selectedDate]);
+
+  const activeGroup = groups.find(group => group.key === selectedDate) || groups[0];
   const introId = sorted.find(v => v.isIntro)?.id;
 
   return (
     <section>
-      <div className="hero">
+      <div className="hero course-hero">
         <div>
           <div className="eyebrow">YOUR COURSE</div>
-          <h1>Video lessons</h1>
+          <h1>Course lessons</h1>
           <p className="muted">
-            {user.isAnonymous ? 'Guest preview: the introduction is available.' : `All available lessons are unlocked. Provider: ${getVideoProvider()}.`}
+            {user.isAnonymous
+              ? 'Guest preview: the introduction is available.'
+              : `Choose a lesson day below. Provider: ${getVideoProvider()}.`}
           </p>
         </div>
       </div>
@@ -90,11 +142,49 @@ export default function VideoGallery({ user }) {
       {error && <div className="error-box">{error}</div>}
       {!error && !sorted.length && <div className="empty-state">No lessons have been published yet.</div>}
 
-      <div className="video-grid">
-        {sorted.map(video => (
-          <VideoCard key={video.id} video={video} user={user} locked={user.isAnonymous && video.id !== introId} />
-        ))}
-      </div>
+      {!!groups.length && (
+        <>
+          <div className="day-folder-grid" aria-label="Lesson days">
+            {groups.map(group => (
+              <button
+                type="button"
+                className={`day-folder ${selectedDate === group.key ? 'selected' : ''}`}
+                key={group.key || 'unscheduled'}
+                onClick={() => setSelectedDate(group.key)}
+              >
+                <span className="folder-icon">📁</span>
+                <span className="day-folder-copy">
+                  <strong>{formatDate(group.key)}</strong>
+                  <small>{group.items.length} {group.items.length === 1 ? 'lesson' : 'lessons'}</small>
+                </span>
+                <span className="folder-arrow">›</span>
+              </button>
+            ))}
+          </div>
+
+          {activeGroup && (
+            <section className="lesson-day" aria-labelledby="active-day-title">
+              <div className="day-heading">
+                <div>
+                  <div className="eyebrow">LESSON DAY</div>
+                  <h2 id="active-day-title">{formatDate(activeGroup.key)}</h2>
+                </div>
+                <span className="day-count">{activeGroup.items.length} lessons</span>
+              </div>
+              <div className="video-grid">
+                {activeGroup.items.map(video => (
+                  <VideoCard
+                    key={video.id}
+                    video={video}
+                    user={user}
+                    locked={user.isAnonymous && video.id !== introId}
+                  />
+                ))}
+              </div>
+            </section>
+          )}
+        </>
+      )}
     </section>
   );
 }

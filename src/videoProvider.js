@@ -11,7 +11,7 @@ export async function getPlaybackSource(video, user) {
       throw new Error('Cloudflare Stream is enabled but VITE_VIDEO_TOKEN_ENDPOINT is missing.');
     }
 
-    const id = video.videoId || video.youtubeId;
+    const id = video.videoId || video.youtubeId || video.videoUrl;
     const tokenUrl = new URL(tokenEndpoint);
     tokenUrl.searchParams.set('videoId', id);
 
@@ -37,8 +37,17 @@ export async function getPlaybackSource(video, user) {
     };
   }
 
+  const source = video.youtubeId || video.videoId || video.videoUrl;
+  if (!source) throw new Error('This lesson has no video source configured.');
+
+  let youtubeId = source;
+  const youtubeMatch = String(source).match(
+    /(?:youtube(?:-nocookie)?\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([^?&/]+)/
+  );
+  if (youtubeMatch) youtubeId = youtubeMatch[1];
+
   return {
     type: 'youtube',
-    src: `https://www.youtube-nocookie.com/embed/${encodeURIComponent(video.youtubeId)}?modestbranding=1&rel=0`,
+    src: `https://www.youtube-nocookie.com/embed/${encodeURIComponent(youtubeId)}?modestbranding=1&rel=0`,
   };
 }
