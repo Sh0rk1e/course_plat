@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore';
 import { auth, db, onAuthStateChanged, signOut } from './firebase';
 import { Navigate, Link, Routes, Route, useLocation } from 'react-router-dom';
@@ -14,6 +14,35 @@ function Loading() {
 function Layout({ user, profile, children }) {
   const location = useLocation();
   const admin = profile?.role === 'admin';
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef(null);
+
+  const displayName = user.isAnonymous
+    ? 'Guest'
+    : (profile?.displayName?.trim() || user.displayName?.trim() || 'User');
+
+  useEffect(() => {
+    if (!menuOpen) return undefined;
+
+    function handleOutsideClick(event) {
+      if (!menuRef.current?.contains(event.target)) setMenuOpen(false);
+    }
+    function handleKeyDown(event) {
+      if (event.key === 'Escape') setMenuOpen(false);
+    }
+
+    document.addEventListener('mousedown', handleOutsideClick);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handleOutsideClick);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [menuOpen]);
+
+  async function handleSignOut() {
+    setMenuOpen(false);
+    await signOut(auth);
+  }
 
   return (
     <div className="app-shell">
@@ -22,9 +51,37 @@ function Layout({ user, profile, children }) {
         <nav>
           <Link className={location.pathname === '/' ? 'active' : ''} to="/">Lessons</Link>
           {admin && <Link className={location.pathname === '/admin' ? 'active' : ''} to="/admin">Admin</Link>}
-          <Link className={location.pathname === '/settings' ? 'active' : ''} to="/settings">Settings</Link>
-          <span className="user-badge">{user.isAnonymous ? 'Guest' : (user.email || 'User')}</span>
-          <button className="button button-small button-ghost" onClick={() => signOut(auth)}>Sign out</button>
+          <div className="account-menu" ref={menuRef}>
+            <button
+              type="button"
+              className={`account-trigger${menuOpen ? ' open' : ''}`}
+              aria-haspopup="menu"
+              aria-expanded={menuOpen}
+              onClick={() => setMenuOpen(open => !open)}
+            >
+              <span className="account-name">{displayName}</span>
+              <span className="account-chevron" aria-hidden="true">⌄</span>
+            </button>
+            {menuOpen && (
+              <div className="account-dropdown" role="menu">
+                <div className="account-dropdown-header">
+                  <strong>{displayName}</strong>
+                  {!user.isAnonymous && <small>{user.email || 'Signed-in account'}</small>}
+                </div>
+                <Link
+                  role="menuitem"
+                  className={location.pathname === '/settings' ? 'account-menu-item active' : 'account-menu-item'}
+                  to="/settings"
+                  onClick={() => setMenuOpen(false)}
+                >
+                  <span>Settings</span>
+                </Link>
+                <button type="button" role="menuitem" className="account-menu-item" onClick={handleSignOut}>
+                  <span>Log out</span>
+                </button>
+              </div>
+            )}
+          </div>
         </nav>
       </header>
       <main className="container">{children}</main>

@@ -4,14 +4,11 @@ import { db } from '../firebase';
 
 const userDefaults = {
   displayName: '',
-  compactLessons: false,
   showDescriptions: true,
   reduceMotion: false,
 };
 
 const adminDefaults = {
-  courseName: 'Course Platform',
-  courseDescription: 'Your course lessons',
   autoDateParsing: true,
   defaultProvider: 'youtube',
   guestIntroEnabled: true,
@@ -62,7 +59,6 @@ export default function Settings({ user, profile }) {
       await setDoc(doc(db, 'users', user.uid), {
         displayName: userForm.displayName.trim(),
         preferences: {
-          compactLessons: Boolean(userForm.compactLessons),
           showDescriptions: Boolean(userForm.showDescriptions),
           reduceMotion: Boolean(userForm.reduceMotion),
         },
@@ -96,7 +92,7 @@ export default function Settings({ user, profile }) {
           <div className="eyebrow">SETTINGS</div>
           <h1>{isAdmin ? 'Settings' : 'Your settings'}</h1>
           <p className="muted">
-            {isAdmin ? 'Manage your admin preferences and course-wide configuration.' : 'Manage your profile and lesson viewing preferences.'}
+            {isAdmin ? 'Manage your admin preferences and lesson automation.' : 'Manage your profile and lesson viewing preferences.'}
           </p>
         </div>
       </div>
@@ -111,7 +107,6 @@ export default function Settings({ user, profile }) {
           )}
           {isAdmin && (
             <>
-              <button className={tab === 'admin' ? 'settings-nav-item active' : 'settings-nav-item'} onClick={() => setTab('admin')}>Course settings</button>
               <button className={tab === 'automation' ? 'settings-nav-item active' : 'settings-nav-item'} onClick={() => setTab('automation')}>Lesson automation</button>
               <button className={tab === 'access' ? 'settings-nav-item active' : 'settings-nav-item'} onClick={() => setTab('access')}>Access</button>
               <button className={tab === 'profile' ? 'settings-nav-item active' : 'settings-nav-item'} onClick={() => setTab('profile')}>Admin profile</button>
@@ -135,20 +130,14 @@ export default function Settings({ user, profile }) {
           {!isAdmin && tab === 'preferences' && (
             <form onSubmit={saveUser}>
               <div><h2>Lesson preferences</h2><p className="muted">Choose how the lesson library should look for you.</p></div>
-              <label className="setting-toggle"><input type="checkbox" checked={userForm.compactLessons} onChange={e => updateUser('compactLessons', e.target.checked)} /><span><strong>Compact lesson cards</strong><small>Use tighter spacing in the lesson library.</small></span></label>
               <label className="setting-toggle"><input type="checkbox" checked={userForm.showDescriptions} onChange={e => updateUser('showDescriptions', e.target.checked)} /><span><strong>Show lesson descriptions</strong><small>Display descriptions below video titles.</small></span></label>
               <label className="setting-toggle"><input type="checkbox" checked={userForm.reduceMotion} onChange={e => updateUser('reduceMotion', e.target.checked)} /><span><strong>Reduce motion</strong><small>Reduce interface animations and transitions.</small></span></label>
               <button className="button button-primary" disabled={busy}>{busy ? 'Saving…' : 'Save preferences'}</button>
             </form>
           )}
 
-          {isAdmin && (tab === 'admin' || tab === 'automation' || tab === 'access') && (
+          {isAdmin && (tab === 'automation' || tab === 'access') && (
             <form onSubmit={saveAdmin}>
-              {tab === 'admin' && <>
-                <div><h2>Course settings</h2><p className="muted">General settings for the course. These are saved for the admin configuration.</p></div>
-                <label>Course name<input value={adminForm.courseName} onChange={e => updateAdmin('courseName', e.target.value)} /></label>
-                <label>Course description<textarea rows="4" value={adminForm.courseDescription} onChange={e => updateAdmin('courseDescription', e.target.value)} /></label>
-              </>}
               {tab === 'automation' && <>
                 <div><h2>Lesson automation</h2><p className="muted">Control how newly imported or existing lesson names are interpreted.</p></div>
                 <label className="setting-toggle"><input type="checkbox" checked={adminForm.autoDateParsing} onChange={e => updateAdmin('autoDateParsing', e.target.checked)} /><span><strong>Automatic date parsing</strong><small>Recognize dates such as 02.09.26 or 07.09.2026 in lesson titles.</small></span></label>
@@ -167,7 +156,6 @@ export default function Settings({ user, profile }) {
               <div><h2>Admin profile</h2><p className="muted">Your account information and personal preferences.</p></div>
               <label>Display name<input value={userForm.displayName} onChange={e => updateUser('displayName', e.target.value)} /></label>
               <label>Email<input value={user.email || ''} readOnly /></label>
-              <label className="setting-toggle"><input type="checkbox" checked={userForm.reduceMotion} onChange={e => updateUser('reduceMotion', e.target.checked)} /><span><strong>Reduce motion</strong><small>Reduce interface animations and transitions.</small></span></label>
               <button className="button button-primary" disabled={busy}>{busy ? 'Saving…' : 'Save profile'}</button>
             </form>
           )}

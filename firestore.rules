@@ -40,7 +40,11 @@ service cloud.firestore {
 
 
     match /settings/{settingsId} {
-      allow read, write: if isAdmin();
+      // Course configuration is safe for signed-in users to read.
+      // Only admins may create or change it. This avoids permission errors
+      // when an admin session is loading the settings page.
+      allow read: if signedIn();
+      allow create, update, delete: if isAdmin();
     }
 
     match /videos/{videoId} {
