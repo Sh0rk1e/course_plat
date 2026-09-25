@@ -38,6 +38,11 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+
+    match /settings/{settingsId} {
+      allow read, write: if isAdmin();
+    }
+
     match /videos/{videoId} {
       // Guests may retrieve ONLY the explicitly marked intro lesson.
       // Registered users and admins may retrieve all lesson metadata.

@@ -5,6 +5,7 @@ import { Navigate, Link, Routes, Route, useLocation } from 'react-router-dom';
 import Auth from './components/Auth';
 import VideoGallery from './components/VideoGallery';
 import AdminPanel from './components/AdminPanel';
+import Settings from './components/Settings';
 
 function Loading() {
   return <div className="page-center"><div className="spinner" /><p>Loading…</p></div>;
@@ -21,6 +22,7 @@ function Layout({ user, profile, children }) {
         <nav>
           <Link className={location.pathname === '/' ? 'active' : ''} to="/">Lessons</Link>
           {admin && <Link className={location.pathname === '/admin' ? 'active' : ''} to="/admin">Admin</Link>}
+          <Link className={location.pathname === '/settings' ? 'active' : ''} to="/settings">Settings</Link>
           <span className="user-badge">{user.isAnonymous ? 'Guest' : (user.email || 'User')}</span>
           <button className="button button-small button-ghost" onClick={() => signOut(auth)}>Sign out</button>
         </nav>
@@ -84,6 +86,11 @@ export default function App() {
           {profile?.role === 'admin'
             ? <Layout user={user} profile={profile}><AdminPanel /></Layout>
             : <Navigate to="/" replace />}
+        </Protected>
+      } />
+      <Route path="/settings" element={
+        <Protected user={user}>
+          <Layout user={user} profile={profile}><Settings user={user} profile={profile} /></Layout>
         </Protected>
       } />
       <Route path="*" element={<Navigate to={user ? '/' : '/auth'} replace />} />
