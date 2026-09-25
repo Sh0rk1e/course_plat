@@ -6,7 +6,6 @@ const userDefaults = {
   displayName: '',
   showDescriptions: true,
   reduceMotion: false,
-  tomatoThrowing: true,
 };
 
 const adminDefaults = {
@@ -67,7 +66,6 @@ export default function Settings({ user, profile, isAdmin = false }) {
         preferences: {
           showDescriptions: Boolean(userForm.showDescriptions),
           reduceMotion: Boolean(userForm.reduceMotion),
-          tomatoThrowing: Boolean(userForm.tomatoThrowing),
         },
         updatedAt: serverTimestamp(),
       }, { merge: true });
@@ -139,7 +137,6 @@ export default function Settings({ user, profile, isAdmin = false }) {
               <div><h2>Lesson preferences</h2><p className="muted">Choose how the lesson library should look for you.</p></div>
               <label className="setting-toggle"><input type="checkbox" checked={userForm.showDescriptions} onChange={e => updateUser('showDescriptions', e.target.checked)} /><span><strong>Show lesson descriptions</strong><small>Display descriptions below video titles.</small></span></label>
               <label className="setting-toggle"><input type="checkbox" checked={userForm.reduceMotion} onChange={e => updateUser('reduceMotion', e.target.checked)} /><span><strong>Reduce motion</strong><small>Reduce interface animations and transitions.</small></span></label>
-              <label className="setting-toggle"><input type="checkbox" checked={userForm.tomatoThrowing} onChange={e => updateUser('tomatoThrowing', e.target.checked)} /><span><strong>Tomato throwing</strong><small>Show a tomato button while watching a lesson so you can throw tomatoes at the video.</small></span></label>
               <button className="button button-primary" disabled={busy}>{busy ? 'Saving…' : 'Save preferences'}</button>
             </form>
           )}
@@ -162,7 +159,6 @@ export default function Settings({ user, profile, isAdmin = false }) {
           {isAdmin && tab === 'preferences' && (
             <form onSubmit={saveUser}>
               <div><h2>Lesson preferences</h2><p className="muted">Choose the interactive features available while watching lessons.</p></div>
-              <label className="setting-toggle"><input type="checkbox" checked={userForm.tomatoThrowing} onChange={e => updateUser('tomatoThrowing', e.target.checked)} /><span><strong>Tomato throwing</strong><small>Show a tomato button while watching a lesson so you can throw tomatoes at the video.</small></span></label>
               <button className="button button-primary" disabled={busy}>{busy ? 'Saving…' : 'Save preferences'}</button>
             </form>
           )}

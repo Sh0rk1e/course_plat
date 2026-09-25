@@ -3,7 +3,6 @@ import { collection, doc, onSnapshot, query, where } from 'firebase/firestore';
 import { db } from '../firebase';
 import { getPlaybackSource, getVideoProvider } from '../videoProvider';
 import { lessonDateKey } from '../dateUtils';
-import TomatoThrower from './TomatoThrower';
 
 function formatDate(dateKey) {
   if (!dateKey) return 'Unscheduled';
@@ -55,9 +54,9 @@ function VideoCard({ video, locked, user, preferences }) {
         await document.exitFullscreen();
       } else if (document.fullscreenElement) {
         await document.exitFullscreen();
-        await frame.requestFullscreen();
+        await frame.requestFullscreen({ navigationUI: 'hide' });
       } else {
-        await frame.requestFullscreen();
+        await frame.requestFullscreen({ navigationUI: 'hide' });
       }
     } catch (err) {
       console.error('Fullscreen error:', err);
@@ -98,12 +97,11 @@ function VideoCard({ video, locked, user, preferences }) {
                 type="button"
                 className="video-fullscreen-toggle"
                 onClick={toggleFullscreen}
-                aria-label={isFullscreen ? 'Exit fullscreen' : 'Open video in fullscreen'}
-                title={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}
+                aria-label={isFullscreen ? 'Exit browser fullscreen' : 'Enter browser fullscreen'}
+                title={isFullscreen ? 'Exit browser fullscreen' : 'Enter browser fullscreen'}
               >
-                {isFullscreen ? '↙' : '↗'} <span>{isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}</span>
+                {isFullscreen ? '↙' : '⛶'} <span>{isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}</span>
               </button>
-              <TomatoThrower enabled={preferences.tomatoThrowing} reduceMotion={preferences.reduceMotion} targetRef={videoFrameRef} />
             </>
           )}
         </div>
@@ -121,7 +119,7 @@ export default function VideoGallery({ user }) {
   const [videos, setVideos] = useState([]);
   const [selectedDate, setSelectedDate] = useState(null);
   const [error, setError] = useState('');
-  const [preferences, setPreferences] = useState({ showDescriptions: true, reduceMotion: false, tomatoThrowing: true });
+  const [preferences, setPreferences] = useState({ showDescriptions: true, reduceMotion: false });
 
   useEffect(() => {
     const q = user.isAnonymous
