@@ -7,11 +7,16 @@ import VideoGallery from './components/VideoGallery';
 import AdminPanel from './components/AdminPanel';
 import Settings from './components/Settings';
 
-function isAdminAccount(user, claims = {}) {
+function isAdminAccount(user, claims = {}, profile = null) {
   return Boolean(
     user &&
     !user.isAnonymous &&
-    (claims.admin === true || claims.isAdmin === true || claims.role === 'admin')
+    (
+      claims.admin === true ||
+      claims.isAdmin === true ||
+      claims.role === 'admin' ||
+      profile?.role === 'admin'
+    )
   );
 }
 
@@ -143,7 +148,7 @@ export default function App() {
 
   if (user === undefined) return <Loading />;
 
-  const admin = isAdminAccount(user, claims);
+  const admin = isAdminAccount(user, claims, profile);
 
   return (
     <Routes>
