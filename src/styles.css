@@ -22,9 +22,15 @@
 @media(max-width:760px){.account-name{max-width:130px}.account-dropdown{right:0}}
 
 
-/* Tomatoes fly from the bottom of the lesson toward the exact click position,
-   stay there for 2 seconds, then fade out. */
-.tomato-zone{position:absolute;inset:0;pointer-events:none;overflow:hidden;z-index:5}
+/* Tomato mode uses an explicit aim layer because clicks inside a cross-origin
+   YouTube/Cloudflare iframe do not bubble to the parent page. */
+.video-frame{position:relative;overflow:hidden}
+.tomato-toggle{position:absolute;right:10px;top:10px;z-index:8;border:1px solid rgba(255,255,255,.45);background:rgba(17,24,39,.82);color:#fff;border-radius:8px;padding:7px 10px;font-size:12px;font-weight:700;cursor:pointer;backdrop-filter:blur(4px)}
+.tomato-toggle:hover{background:rgba(17,24,39,.94)}
+.tomato-toggle.active{background:#b42318;border-color:#fda29b}
+.tomato-capture-zone{position:absolute;inset:0;z-index:7;cursor:crosshair;background:transparent}
+.tomato-capture-zone:after{content:'Click anywhere to throw';position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);padding:8px 11px;border-radius:8px;background:rgba(17,24,39,.7);color:#fff;font-size:12px;pointer-events:none}
+.tomato-zone{position:absolute;inset:0;pointer-events:none;overflow:hidden;z-index:9}
 .flying-tomato{position:absolute;left:0;top:0;font-size:32px;line-height:1;user-select:none;filter:drop-shadow(0 2px 2px rgba(16,24,40,.25));transform-origin:center;animation:tomato-throw calc(var(--tomato-flight) + var(--tomato-hold) + var(--tomato-fade)) linear forwards}
 .flying-tomato.reduced{animation:tomato-throw-reduced calc(var(--tomato-flight) + var(--tomato-hold) + var(--tomato-fade)) linear forwards}
 @keyframes tomato-throw{

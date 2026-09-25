@@ -18,7 +18,7 @@ const adminDefaults = {
 };
 
 export default function Settings({ user, profile }) {
-  const isAdmin = Boolean(user && !user.isAnonymous && ADMIN_EMAILS.includes((user.email || '').toLowerCase())) || profile?.role === 'admin';
+  const isAdmin = Boolean(user && !user.isAnonymous && ADMIN_EMAILS.includes((user.email || '').toLowerCase()));
   const [tab, setTab] = useState(isAdmin ? 'admin' : 'profile');
   const [userForm, setUserForm] = useState(userDefaults);
   const [adminForm, setAdminForm] = useState(adminDefaults);

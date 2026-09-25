@@ -9,9 +9,8 @@ import Settings from './components/Settings';
 
 const ADMIN_EMAILS = ['ovsiankinna@gmail.com'];
 
-function isAdminAccount(user, profile) {
-  return Boolean(user && !user.isAnonymous && ADMIN_EMAILS.includes((user.email || '').toLowerCase()))
-    || profile?.role === 'admin';
+function isAdminAccount(user) {
+  return Boolean(user && !user.isAnonymous && ADMIN_EMAILS.includes((user.email || '').toLowerCase()));
 }
 
 function Loading() {
@@ -20,7 +19,7 @@ function Loading() {
 
 function Layout({ user, profile, children }) {
   const location = useLocation();
-  const admin = isAdminAccount(user, profile);
+  const admin = isAdminAccount(user);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef(null);
 
@@ -147,7 +146,7 @@ export default function App() {
       } />
       <Route path="/admin" element={
         <Protected user={user}>
-          {profile?.role === 'admin'
+          {isAdminAccount(user)
             ? <Layout user={user} profile={profile}><AdminPanel /></Layout>
             : <Navigate to="/" replace />}
         </Protected>
