@@ -18,7 +18,7 @@ function getOffscreenStart(targetX, targetY) {
   return { x: Math.max(0, Math.min(width, targetX + (Math.random() - 0.5) * width * 0.7)), y: height + margin };
 }
 
-export default function TomatoThrower({ enabled = true, reduceMotion = false, targetRef, isFullscreen = false }) {
+export default function TomatoThrower({ enabled = true, reduceMotion = false, targetRef }) {
   const [tomatoes, setTomatoes] = useState([]);
   const [aiming, setAiming] = useState(false);
 
@@ -78,7 +78,7 @@ export default function TomatoThrower({ enabled = true, reduceMotion = false, ta
         >🍅</span>
       ))}
     </div>,
-    isFullscreen && targetRef?.current ? targetRef.current : document.body,
+    document.body,
   ) : null;
 
   return (
