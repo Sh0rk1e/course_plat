@@ -103,7 +103,7 @@ function VideoCard({ video, locked, user, preferences }) {
               >
                 {isFullscreen ? '↙' : '↗'} <span>{isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}</span>
               </button>
-              <TomatoThrower enabled={preferences.tomatoThrowing} reduceMotion={preferences.reduceMotion} targetRef={videoFrameRef} />
+              <TomatoThrower enabled={preferences.tomatoThrowing} reduceMotion={preferences.reduceMotion} targetRef={videoFrameRef} isFullscreen={isFullscreen} />
             </>
           )}
         </div>
