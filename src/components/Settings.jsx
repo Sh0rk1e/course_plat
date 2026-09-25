@@ -33,8 +33,14 @@ export default function Settings({ user, profile }) {
           setUserForm({ ...userDefaults, ...(data.preferences || {}), displayName: data.displayName || '' });
         }
         if (isAdmin) {
-          const settingsSnap = await getDoc(doc(db, 'settings', 'app'));
-          if (!cancelled && settingsSnap.exists()) setAdminForm({ ...adminDefaults, ...settingsSnap.data() });
+          // Keep admin-only settings on the admin user's own profile.
+          // This avoids a separate settings document becoming a Firestore
+          // permission bottleneck and keeps the values protected by the
+          // existing per-user rules.
+          const data = userSnap.exists() ? userSnap.data() : {};
+          if (!cancelled && data.adminSettings) {
+            setAdminForm({ ...adminDefaults, ...data.adminSettings });
+          }
         }
       } catch (err) {
         if (!cancelled) setError(err.message || 'Could not load settings.');
@@ -74,10 +80,9 @@ export default function Settings({ user, profile }) {
     e.preventDefault();
     setBusy(true); setError(''); setMessage('');
     try {
-      await setDoc(doc(db, 'settings', 'app'), {
-        ...adminForm,
+      await setDoc(doc(db, 'users', user.uid), {
+        adminSettings: { ...adminForm },
         updatedAt: serverTimestamp(),
-        updatedBy: user.uid,
       }, { merge: true });
       setMessage('Admin settings were saved.');
     } catch (err) {
