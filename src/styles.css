@@ -24,6 +24,11 @@
 
 /* Tomato mode: capture clicks over cross-origin video and render the throw in a viewport-level layer. */
 .video-frame{position:relative;overflow:hidden}
+.video-fullscreen-toggle{position:absolute;left:10px;top:10px;z-index:8;border:1px solid rgba(255,255,255,.45);background:rgba(17,24,39,.82);color:#fff;border-radius:8px;padding:7px 10px;font-size:12px;font-weight:700;cursor:pointer;backdrop-filter:blur(4px)}
+.video-fullscreen-toggle:hover{background:rgba(17,24,39,.94)}
+.video-frame:fullscreen{width:100vw;height:100vh;background:#0b0d10;display:flex;align-items:center;justify-content:center}
+.video-frame:fullscreen iframe{width:100%;height:100%;border:0}
+.video-frame:fullscreen .tomato-capture-zone:after{content:'Click anywhere to throw'}
 .tomato-toggle{position:absolute;right:10px;top:10px;z-index:8;border:1px solid rgba(255,255,255,.45);background:rgba(17,24,39,.82);color:#fff;border-radius:8px;padding:7px 10px;font-size:12px;font-weight:700;cursor:pointer;backdrop-filter:blur(4px)}
 .tomato-toggle:hover{background:rgba(17,24,39,.94)}
 .tomato-toggle.active{background:#b42318;border-color:#fda29b}

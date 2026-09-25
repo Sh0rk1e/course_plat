@@ -25,6 +25,7 @@ function VideoCard({ video, locked, user, preferences }) {
   const videoFrameRef = useRef(null);
   const [playback, setPlayback] = useState(null);
   const [error, setError] = useState('');
+  const [isFullscreen, setIsFullscreen] = useState(false);
   useEffect(() => {
     if (locked) return;
     let cancelled = false;
@@ -37,6 +38,31 @@ function VideoCard({ video, locked, user, preferences }) {
     });
     return () => { cancelled = true; };
   }, [video, locked, user]);
+
+  useEffect(() => {
+    function handleFullscreenChange() {
+      setIsFullscreen(document.fullscreenElement === videoFrameRef.current);
+    }
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+  }, []);
+
+  async function toggleFullscreen() {
+    const frame = videoFrameRef.current;
+    if (!frame) return;
+    try {
+      if (document.fullscreenElement === frame) {
+        await document.exitFullscreen();
+      } else if (document.fullscreenElement) {
+        await document.exitFullscreen();
+        await frame.requestFullscreen();
+      } else {
+        await frame.requestFullscreen();
+      }
+    } catch (err) {
+      console.error('Fullscreen error:', err);
+    }
+  }
 
   return (
     <article className={`video-card ${locked ? 'is-locked' : ''}`}>
@@ -67,7 +93,18 @@ function VideoCard({ video, locked, user, preferences }) {
             />
           ) : <div className="video-loading">Authorizing video…</div>}
           {!locked && !error && (
-            <TomatoThrower enabled={preferences.tomatoThrowing} reduceMotion={preferences.reduceMotion} targetRef={videoFrameRef} />
+            <>
+              <button
+                type="button"
+                className="video-fullscreen-toggle"
+                onClick={toggleFullscreen}
+                aria-label={isFullscreen ? 'Exit fullscreen' : 'Open video in fullscreen'}
+                title={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}
+              >
+                {isFullscreen ? '↙' : '↗'} <span>{isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}</span>
+              </button>
+              <TomatoThrower enabled={preferences.tomatoThrowing} reduceMotion={preferences.reduceMotion} targetRef={videoFrameRef} />
+            </>
           )}
         </div>
       )}
