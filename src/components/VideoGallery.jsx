@@ -21,10 +21,8 @@ function dateKey(video) {
 }
 
 function VideoCard({ video, locked, user, preferences }) {
-  const videoFrameRef = useRef(null);
   const [playback, setPlayback] = useState(null);
   const [error, setError] = useState('');
-  const [isFullscreen, setIsFullscreen] = useState(false);
   useEffect(() => {
     if (locked) return;
     let cancelled = false;
@@ -38,30 +36,7 @@ function VideoCard({ video, locked, user, preferences }) {
     return () => { cancelled = true; };
   }, [video, locked, user]);
 
-  useEffect(() => {
-    function handleFullscreenChange() {
-      setIsFullscreen(document.fullscreenElement === videoFrameRef.current);
-    }
-    document.addEventListener('fullscreenchange', handleFullscreenChange);
-    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
-  }, []);
 
-  async function toggleFullscreen() {
-    const frame = videoFrameRef.current;
-    if (!frame) return;
-    try {
-      if (document.fullscreenElement === frame) {
-        await document.exitFullscreen();
-      } else if (document.fullscreenElement) {
-        await document.exitFullscreen();
-        await frame.requestFullscreen({ navigationUI: 'hide' });
-      } else {
-        await frame.requestFullscreen({ navigationUI: 'hide' });
-      }
-    } catch (err) {
-      console.error('Fullscreen error:', err);
-    }
-  }
 
   return (
     <article className={`video-card ${locked ? 'is-locked' : ''}`}>
@@ -72,7 +47,7 @@ function VideoCard({ video, locked, user, preferences }) {
           <p>Create an account to unlock all lessons.</p>
         </div>
       ) : (
-        <div ref={videoFrameRef} className="video-frame">
+        <div className="video-frame">
           {error ? <div className="video-error">{error}</div> : playback?.type === 'cloudflare' ? (
             <iframe
               src={playback.src}
@@ -91,19 +66,7 @@ function VideoCard({ video, locked, user, preferences }) {
               allowFullScreen
             />
           ) : <div className="video-loading">Authorizing video…</div>}
-          {!locked && !error && (
-            <>
-              <button
-                type="button"
-                className="video-fullscreen-toggle"
-                onClick={toggleFullscreen}
-                aria-label={isFullscreen ? 'Exit browser fullscreen' : 'Enter browser fullscreen'}
-                title={isFullscreen ? 'Exit browser fullscreen' : 'Enter browser fullscreen'}
-              >
-                {isFullscreen ? '↙' : '⛶'} <span>{isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}</span>
-              </button>
-            </>
-          )}
+
         </div>
       )}
       <div className="video-meta">

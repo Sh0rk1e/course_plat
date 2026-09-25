@@ -22,5 +22,3 @@
 @media(max-width:760px){.account-name{max-width:130px}.account-dropdown{right:0}}
 
 
-/* Native browser fullscreen: the video stage itself is the fullscreen element. */
-.video-frame:fullscreen{position:fixed;inset:0;z-index:2147483640}
