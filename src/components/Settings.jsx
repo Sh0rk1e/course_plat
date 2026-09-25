@@ -2,8 +2,6 @@ import { useEffect, useState } from 'react';
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../firebase';
 
-const ADMIN_EMAILS = ['ovsiankinna@gmail.com'];
-
 const userDefaults = {
   displayName: '',
   showDescriptions: true,
@@ -17,8 +15,7 @@ const adminDefaults = {
   guestIntroEnabled: true,
 };
 
-export default function Settings({ user, profile }) {
-  const isAdmin = Boolean(user && !user.isAnonymous && ADMIN_EMAILS.includes((user.email || '').toLowerCase()));
+export default function Settings({ user, profile, isAdmin = false }) {
   const [tab, setTab] = useState(isAdmin ? 'admin' : 'profile');
   const [userForm, setUserForm] = useState(userDefaults);
   const [adminForm, setAdminForm] = useState(adminDefaults);

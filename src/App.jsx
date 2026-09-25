@@ -1,25 +1,23 @@
 import { useEffect, useRef, useState } from 'react';
 import { doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore';
-import { auth, db, onAuthStateChanged, signOut } from './firebase';
+import { auth, db, onAuthStateChanged, signOut, getIdTokenResult } from './firebase';
 import { Navigate, Link, Routes, Route, useLocation } from 'react-router-dom';
 import Auth from './components/Auth';
 import VideoGallery from './components/VideoGallery';
 import AdminPanel from './components/AdminPanel';
 import Settings from './components/Settings';
 
-const ADMIN_EMAILS = ['ovsiankinna@gmail.com'];
-
-function isAdminAccount(user) {
-  return Boolean(user && !user.isAnonymous && ADMIN_EMAILS.includes((user.email || '').toLowerCase()));
+function isAdminAccount(user, claims = {}) {
+  return Boolean(user && !user.isAnonymous && claims.admin === true);
 }
 
 function Loading() {
   return <div className="page-center"><div className="spinner" /><p>Loading…</p></div>;
 }
 
-function Layout({ user, profile, children }) {
+function Layout({ user, profile, isAdmin, children }) {
   const location = useLocation();
-  const admin = isAdminAccount(user);
+  const admin = isAdmin;
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef(null);
 
@@ -102,15 +100,20 @@ function Protected({ user, children }) {
 export default function App() {
   const [user, setUser] = useState(undefined);
   const [profile, setProfile] = useState(null);
+  const [claims, setClaims] = useState({});
 
   useEffect(() => onAuthStateChanged(auth, async (nextUser) => {
     setUser(nextUser);
     if (!nextUser) {
       setProfile(null);
+      setClaims({});
       return;
     }
 
     try {
+      const tokenResult = await getIdTokenResult(nextUser, true);
+      setClaims(tokenResult.claims || {});
+
       const ref = doc(db, 'users', nextUser.uid);
       const snap = await getDoc(ref);
 
@@ -120,7 +123,6 @@ export default function App() {
         const newProfile = {
           email: nextUser.email || '',
           displayName: nextUser.displayName || '',
-          role: 'user',
           createdAt: serverTimestamp(),
         };
         await setDoc(ref, newProfile);
@@ -130,30 +132,33 @@ export default function App() {
       }
     } catch (error) {
       console.error('Profile error:', error);
+      setClaims({});
       setProfile(nextUser.isAnonymous ? { role: 'guest' } : null);
     }
   }), []);
 
   if (user === undefined) return <Loading />;
 
+  const admin = isAdminAccount(user, claims);
+
   return (
     <Routes>
       <Route path="/auth" element={user ? <Navigate to="/" replace /> : <Auth />} />
       <Route path="/" element={
         <Protected user={user}>
-          <Layout user={user} profile={profile}><VideoGallery user={user} /></Layout>
+          <Layout user={user} profile={profile} isAdmin={admin}><VideoGallery user={user} /></Layout>
         </Protected>
       } />
       <Route path="/admin" element={
         <Protected user={user}>
-          {isAdminAccount(user)
-            ? <Layout user={user} profile={profile}><AdminPanel /></Layout>
+          {admin
+            ? <Layout user={user} profile={profile} isAdmin={admin}><AdminPanel /></Layout>
             : <Navigate to="/" replace />}
         </Protected>
       } />
       <Route path="/settings" element={
         <Protected user={user}>
-          <Layout user={user} profile={profile}><Settings user={user} profile={profile} /></Layout>
+          <Layout user={user} profile={profile} isAdmin={admin}><Settings user={user} profile={profile} isAdmin={admin} /></Layout>
         </Protected>
       } />
       <Route path="*" element={<Navigate to={user ? '/' : '/auth'} replace />} />

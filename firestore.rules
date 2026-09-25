@@ -12,15 +12,11 @@ service cloud.firestore {
         && request.auth.token.firebase.sign_in_provider == "anonymous";
     }
 
+    // Admin authorization comes exclusively from Firebase Authentication
+    // custom claims. Firestore profile fields and email addresses are never
+    // used to grant admin access.
     function isAdmin() {
-      return signedIn()
-        && (
-          request.auth.token.email == "ovsiankinna@gmail.com"
-          || (
-            exists(/databases/$(database)/documents/users/$(request.auth.uid))
-            && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "admin"
-          )
-        );
+      return signedIn() && request.auth.token.admin == true;
     }
 
     function isRegisteredUser() {
@@ -30,15 +26,13 @@ service cloud.firestore {
     match /users/{userId} {
       allow create: if signedIn()
         && request.auth.uid == userId
-        && request.resource.data.role == "user"
         && request.resource.data.email == request.auth.token.email;
 
       allow read: if signedIn()
         && (request.auth.uid == userId || isAdmin());
 
       allow update: if signedIn()
-        && request.auth.uid == userId
-        && request.resource.data.role == resource.data.role;
+        && request.auth.uid == userId;
 
       allow delete: if isAdmin();
     }
