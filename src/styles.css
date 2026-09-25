@@ -22,28 +22,29 @@
 @media(max-width:760px){.account-name{max-width:130px}.account-dropdown{right:0}}
 
 
-/* Tomato mode uses an explicit aim layer because clicks inside a cross-origin
-   YouTube/Cloudflare iframe do not bubble to the parent page. */
+/* Tomato mode: capture clicks over cross-origin video and render the throw in a viewport-level layer. */
 .video-frame{position:relative;overflow:hidden}
 .tomato-toggle{position:absolute;right:10px;top:10px;z-index:8;border:1px solid rgba(255,255,255,.45);background:rgba(17,24,39,.82);color:#fff;border-radius:8px;padding:7px 10px;font-size:12px;font-weight:700;cursor:pointer;backdrop-filter:blur(4px)}
 .tomato-toggle:hover{background:rgba(17,24,39,.94)}
 .tomato-toggle.active{background:#b42318;border-color:#fda29b}
 .tomato-capture-zone{position:absolute;inset:0;z-index:7;cursor:crosshair;background:transparent}
 .tomato-capture-zone:after{content:'Click anywhere to throw';position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);padding:8px 11px;border-radius:8px;background:rgba(17,24,39,.7);color:#fff;font-size:12px;pointer-events:none}
-.tomato-zone{position:absolute;inset:0;pointer-events:none;overflow:hidden;z-index:9}
-.flying-tomato{position:absolute;left:0;top:0;font-size:32px;line-height:1;user-select:none;filter:drop-shadow(0 2px 2px rgba(16,24,40,.25));transform-origin:center;animation:tomato-throw calc(var(--tomato-flight) + var(--tomato-hold) + var(--tomato-fade)) linear forwards}
-.flying-tomato.reduced{animation:tomato-throw-reduced calc(var(--tomato-flight) + var(--tomato-hold) + var(--tomato-fade)) linear forwards}
-@keyframes tomato-throw{
-  0%{opacity:0;transform:translate(calc(var(--tomato-start-x) - 50%),calc(var(--tomato-start-y) - 50%)) scale(.55) rotate(-35deg)}
-  6%{opacity:1}
-  44%{opacity:1;transform:translate(calc(var(--tomato-x) - 50%),calc(var(--tomato-y) - 50%)) scale(1.08) rotate(18deg)}
-  44.444%{opacity:1;transform:translate(calc(var(--tomato-x) - 50%),calc(var(--tomato-y) - 50%)) scale(1) rotate(0deg)}
-  88.889%{opacity:1;transform:translate(calc(var(--tomato-x) - 50%),calc(var(--tomato-y) - 50%)) scale(1) rotate(0deg)}
-  100%{opacity:0;transform:translate(calc(var(--tomato-x) - 50%),calc(var(--tomato-y) - 50%)) scale(.96) rotate(4deg)}
+.tomato-screen-zone{position:fixed;inset:0;pointer-events:none;overflow:visible;z-index:2147483647}
+.flying-tomato{position:fixed;left:0;top:0;font-size:36px;line-height:1;user-select:none;filter:drop-shadow(0 4px 4px rgba(16,24,40,.32));transform-origin:center;will-change:transform,opacity;animation:tomato-screen-throw calc(var(--tomato-flight) + var(--tomato-hold) + var(--tomato-fade)) linear forwards}
+.flying-tomato.reduced{animation:tomato-screen-throw-reduced calc(var(--tomato-flight) + var(--tomato-hold) + var(--tomato-fade)) linear forwards}
+@keyframes tomato-screen-throw{
+  0%{opacity:0;transform:translate3d(calc(var(--tomato-start-x) - 50%),calc(var(--tomato-start-y) - 50%),0) scale(4.2) rotate(-70deg)}
+  4%{opacity:1}
+  18%{opacity:1;transform:translate3d(calc((var(--tomato-start-x) * .72 + var(--tomato-x) * .28) - 50%),calc((var(--tomato-start-y) * .72 + var(--tomato-y) * .28) - 50%),0) scale(2.8) rotate(-40deg)}
+  44%{opacity:1;transform:translate3d(calc(var(--tomato-x) - 50%),calc(var(--tomato-y) - 50%),0) scale(1.08) rotate(22deg)}
+  46%{opacity:1;transform:translate3d(calc(var(--tomato-x) - 50%),calc(var(--tomato-y) - 50%),0) scale(.92) rotate(-5deg)}
+  88.889%{opacity:1;transform:translate3d(calc(var(--tomato-x) - 50%),calc(var(--tomato-y) - 50%),0) scale(1) rotate(0deg)}
+  100%{opacity:0;transform:translate3d(calc(var(--tomato-x) - 50%),calc(var(--tomato-y) - 50%),0) scale(.9) rotate(6deg)}
 }
-@keyframes tomato-throw-reduced{
-  0%{opacity:0;transform:translate(calc(var(--tomato-start-x) - 50%),calc(var(--tomato-start-y) - 50%))}
-  44.444%{opacity:1;transform:translate(calc(var(--tomato-x) - 50%),calc(var(--tomato-y) - 50%))}
-  88.889%{opacity:1;transform:translate(calc(var(--tomato-x) - 50%),calc(var(--tomato-y) - 50%))}
-  100%{opacity:0;transform:translate(calc(var(--tomato-x) - 50%),calc(var(--tomato-y) - 50%))}
+@keyframes tomato-screen-throw-reduced{
+  0%{opacity:0;transform:translate3d(calc(var(--tomato-start-x) - 50%),calc(var(--tomato-start-y) - 50%),0) scale(2.8)}
+  44%{opacity:1;transform:translate3d(calc(var(--tomato-x) - 50%),calc(var(--tomato-y) - 50%),0) scale(.92)}
+  88.889%{opacity:1;transform:translate3d(calc(var(--tomato-x) - 50%),calc(var(--tomato-y) - 50%),0) scale(1)}
+  100%{opacity:0;transform:translate3d(calc(var(--tomato-x) - 50%),calc(var(--tomato-y) - 50%),0) scale(.96)}
 }
+

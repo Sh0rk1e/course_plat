@@ -16,7 +16,11 @@ service cloud.firestore {
     // custom claims. Firestore profile fields and email addresses are never
     // used to grant admin access.
     function isAdmin() {
-      return signedIn() && request.auth.token.admin == true;
+      return signedIn() && (
+        request.auth.token.admin == true
+        || request.auth.token.isAdmin == true
+        || request.auth.token.role == 'admin'
+      );
     }
 
     function isRegisteredUser() {

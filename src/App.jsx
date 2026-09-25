@@ -8,7 +8,11 @@ import AdminPanel from './components/AdminPanel';
 import Settings from './components/Settings';
 
 function isAdminAccount(user, claims = {}) {
-  return Boolean(user && !user.isAnonymous && claims.admin === true);
+  return Boolean(
+    user &&
+    !user.isAnonymous &&
+    (claims.admin === true || claims.isAdmin === true || claims.role === 'admin')
+  );
 }
 
 function Loading() {
