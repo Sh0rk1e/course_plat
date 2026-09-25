@@ -2,10 +2,13 @@ import { useEffect, useState } from 'react';
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../firebase';
 
+const ADMIN_EMAILS = ['ovsiankinna@gmail.com'];
+
 const userDefaults = {
   displayName: '',
   showDescriptions: true,
   reduceMotion: false,
+  tomatoThrowing: true,
 };
 
 const adminDefaults = {
@@ -15,7 +18,7 @@ const adminDefaults = {
 };
 
 export default function Settings({ user, profile }) {
-  const isAdmin = profile?.role === 'admin';
+  const isAdmin = Boolean(user && !user.isAnonymous && ADMIN_EMAILS.includes((user.email || '').toLowerCase())) || profile?.role === 'admin';
   const [tab, setTab] = useState(isAdmin ? 'admin' : 'profile');
   const [userForm, setUserForm] = useState(userDefaults);
   const [adminForm, setAdminForm] = useState(adminDefaults);
@@ -67,6 +70,7 @@ export default function Settings({ user, profile }) {
         preferences: {
           showDescriptions: Boolean(userForm.showDescriptions),
           reduceMotion: Boolean(userForm.reduceMotion),
+          tomatoThrowing: Boolean(userForm.tomatoThrowing),
         },
         updatedAt: serverTimestamp(),
       }, { merge: true });
@@ -114,6 +118,7 @@ export default function Settings({ user, profile }) {
             <>
               <button className={tab === 'automation' ? 'settings-nav-item active' : 'settings-nav-item'} onClick={() => setTab('automation')}>Lesson automation</button>
               <button className={tab === 'access' ? 'settings-nav-item active' : 'settings-nav-item'} onClick={() => setTab('access')}>Access</button>
+              <button className={tab === 'preferences' ? 'settings-nav-item active' : 'settings-nav-item'} onClick={() => setTab('preferences')}>Lesson preferences</button>
               <button className={tab === 'profile' ? 'settings-nav-item active' : 'settings-nav-item'} onClick={() => setTab('profile')}>Admin profile</button>
             </>
           )}
@@ -137,6 +142,7 @@ export default function Settings({ user, profile }) {
               <div><h2>Lesson preferences</h2><p className="muted">Choose how the lesson library should look for you.</p></div>
               <label className="setting-toggle"><input type="checkbox" checked={userForm.showDescriptions} onChange={e => updateUser('showDescriptions', e.target.checked)} /><span><strong>Show lesson descriptions</strong><small>Display descriptions below video titles.</small></span></label>
               <label className="setting-toggle"><input type="checkbox" checked={userForm.reduceMotion} onChange={e => updateUser('reduceMotion', e.target.checked)} /><span><strong>Reduce motion</strong><small>Reduce interface animations and transitions.</small></span></label>
+              <label className="setting-toggle"><input type="checkbox" checked={userForm.tomatoThrowing} onChange={e => updateUser('tomatoThrowing', e.target.checked)} /><span><strong>Tomato throwing</strong><small>Show a tomato button while watching a lesson so you can throw tomatoes at the video.</small></span></label>
               <button className="button button-primary" disabled={busy}>{busy ? 'Saving…' : 'Save preferences'}</button>
             </form>
           )}
@@ -153,6 +159,14 @@ export default function Settings({ user, profile }) {
                 <label className="setting-toggle"><input type="checkbox" checked={adminForm.guestIntroEnabled} onChange={e => updateAdmin('guestIntroEnabled', e.target.checked)} /><span><strong>Guest introduction</strong><small>Allow anonymous visitors to access the lesson marked as the introduction.</small></span></label>
               </>}
               <button className="button button-primary" disabled={busy}>{busy ? 'Saving…' : 'Save admin settings'}</button>
+            </form>
+          )}
+
+          {isAdmin && tab === 'preferences' && (
+            <form onSubmit={saveUser}>
+              <div><h2>Lesson preferences</h2><p className="muted">Choose the interactive features available while watching lessons.</p></div>
+              <label className="setting-toggle"><input type="checkbox" checked={userForm.tomatoThrowing} onChange={e => updateUser('tomatoThrowing', e.target.checked)} /><span><strong>Tomato throwing</strong><small>Show a tomato button while watching a lesson so you can throw tomatoes at the video.</small></span></label>
+              <button className="button button-primary" disabled={busy}>{busy ? 'Saving…' : 'Save preferences'}</button>
             </form>
           )}
 

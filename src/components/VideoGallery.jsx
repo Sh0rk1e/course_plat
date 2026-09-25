@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState } from 'react';
-import { collection, onSnapshot, query, where } from 'firebase/firestore';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { collection, doc, onSnapshot, query, where } from 'firebase/firestore';
 import { db } from '../firebase';
 import { getPlaybackSource, getVideoProvider } from '../videoProvider';
 import { lessonDateKey } from '../dateUtils';
+import TomatoThrower from './TomatoThrower';
 
 function formatDate(dateKey) {
   if (!dateKey) return 'Unscheduled';
@@ -20,10 +21,10 @@ function dateKey(video) {
   return lessonDateKey(video);
 }
 
-function VideoCard({ video, locked, user }) {
+function VideoCard({ video, locked, user, preferences }) {
+  const videoFrameRef = useRef(null);
   const [playback, setPlayback] = useState(null);
   const [error, setError] = useState('');
-
   useEffect(() => {
     if (locked) return;
     let cancelled = false;
@@ -46,7 +47,7 @@ function VideoCard({ video, locked, user }) {
           <p>Create an account to unlock all lessons.</p>
         </div>
       ) : (
-        <div className="video-frame">
+        <div ref={videoFrameRef} className="video-frame">
           {error ? <div className="video-error">{error}</div> : playback?.type === 'cloudflare' ? (
             <iframe
               src={playback.src}
@@ -65,12 +66,15 @@ function VideoCard({ video, locked, user }) {
               allowFullScreen
             />
           ) : <div className="video-loading">Authorizing video…</div>}
+          {!locked && !error && (
+            <TomatoThrower enabled={preferences.tomatoThrowing} reduceMotion={preferences.reduceMotion} targetRef={videoFrameRef} />
+          )}
         </div>
       )}
       <div className="video-meta">
         <span className="lesson-number">Lesson {video.order ?? '—'}</span>
         <h3>{video.title}</h3>
-        {video.description && <p>{video.description}</p>}
+        {video.description && preferences.showDescriptions && <p>{video.description}</p>}
       </div>
     </article>
   );
@@ -80,6 +84,7 @@ export default function VideoGallery({ user }) {
   const [videos, setVideos] = useState([]);
   const [selectedDate, setSelectedDate] = useState(null);
   const [error, setError] = useState('');
+  const [preferences, setPreferences] = useState({ showDescriptions: true, reduceMotion: false, tomatoThrowing: true });
 
   useEffect(() => {
     const q = user.isAnonymous
@@ -93,6 +98,16 @@ export default function VideoGallery({ user }) {
       setError('Unable to load lessons. Check Firebase configuration and Firestore rules.');
     });
   }, []);
+
+  useEffect(() => {
+    if (!user || user.isAnonymous) return undefined;
+    return onSnapshot(doc(db, 'users', user.uid), snapshot => {
+      const data = snapshot.exists() ? snapshot.data() : {};
+      setPreferences(prev => ({ ...prev, ...(data.preferences || {}) }));
+    }, err => {
+      console.error('Preference error:', err);
+    });
+  }, [user]);
 
   const sorted = useMemo(() => [...videos].sort((a, b) => {
     const dateCompare = dateKey(a).localeCompare(dateKey(b));
@@ -178,6 +193,7 @@ export default function VideoGallery({ user }) {
                     key={video.id}
                     video={video}
                     user={user}
+                    preferences={preferences}
                     locked={user.isAnonymous && video.id !== introId}
                   />
                 ))}

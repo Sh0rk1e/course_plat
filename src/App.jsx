@@ -7,13 +7,20 @@ import VideoGallery from './components/VideoGallery';
 import AdminPanel from './components/AdminPanel';
 import Settings from './components/Settings';
 
+const ADMIN_EMAILS = ['ovsiankinna@gmail.com'];
+
+function isAdminAccount(user, profile) {
+  return Boolean(user && !user.isAnonymous && ADMIN_EMAILS.includes((user.email || '').toLowerCase()))
+    || profile?.role === 'admin';
+}
+
 function Loading() {
   return <div className="page-center"><div className="spinner" /><p>Loading…</p></div>;
 }
 
 function Layout({ user, profile, children }) {
   const location = useLocation();
-  const admin = profile?.role === 'admin';
+  const admin = isAdminAccount(user, profile);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef(null);
 
