@@ -58,7 +58,7 @@ service cloud.firestore {
     }
 
     match /videos/{videoId} {
-      // Guests may retrieve ONLY the explicitly marked intro lesson.
+      // Guests may retrieve lessons explicitly marked as Guest intro.
       // Registered users and admins may retrieve all lesson metadata.
       allow read: if signedIn()
         && (

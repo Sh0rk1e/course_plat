@@ -137,7 +137,7 @@ export default function VideoGallery({ user }) {
   }, [groups, selectedDate]);
 
   const activeGroup = groups.find(group => group.key === selectedDate) || groups[0];
-  const introId = sorted.find(v => v.isIntro)?.id;
+  
 
   return (
     <section>
@@ -147,7 +147,7 @@ export default function VideoGallery({ user }) {
           <h1>Course lessons</h1>
           <p className="muted">
             {user.isAnonymous
-              ? 'Guest preview: the introduction is available.'
+              ? 'Guest preview: lessons marked as Guest intro are available.'
               : `Choose a lesson day below. Dates are read automatically from lesson names when needed. Provider: ${getVideoProvider()}.`}
           </p>
         </div>
@@ -192,7 +192,7 @@ export default function VideoGallery({ user }) {
                     video={video}
                     user={user}
                     preferences={preferences}
-                    locked={user.isAnonymous && video.id !== introId}
+                    locked={user.isAnonymous && !video.isIntro}
                   />
                 ))}
               </div>
