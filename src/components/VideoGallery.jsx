@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { collection, doc, onSnapshot, query, where } from 'firebase/firestore';
 import { db } from '../firebase';
 import { getPlaybackSource, getVideoProvider } from '../videoProvider';
@@ -47,13 +47,19 @@ function VideoCard({ video, locked, user, preferences }) {
           <p>Create an account to unlock all lessons.</p>
         </div>
       ) : (
-        <div className="video-frame">
+        <div
+          className="video-frame video-protected"
+          onContextMenu={event => event.preventDefault()}
+          onDragStart={event => event.preventDefault()}
+        >
           {error ? <div className="video-error">{error}</div> : playback?.type === 'cloudflare' ? (
             <iframe
               src={playback.src}
               title={video.title}
               loading="lazy"
-              allow="accelerometer; autoplay; encrypted-media; picture-in-picture"
+              draggable="false"
+              sandbox="allow-scripts allow-same-origin allow-presentation"
+              allow="accelerometer; autoplay; encrypted-media; picture-in-picture; fullscreen"
               allowFullScreen
             />
           ) : playback ? (
@@ -61,12 +67,13 @@ function VideoCard({ video, locked, user, preferences }) {
               src={playback.src}
               title={video.title}
               loading="lazy"
+              draggable="false"
+              sandbox="allow-scripts allow-same-origin allow-presentation"
               referrerPolicy="strict-origin-when-cross-origin"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+              allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture; web-share"
               allowFullScreen
             />
           ) : <div className="video-loading">Authorizing video…</div>}
-
         </div>
       )}
       <div className="video-meta">
@@ -95,6 +102,25 @@ export default function VideoGallery({ user }) {
       console.error(err);
       setError('Unable to load lessons. Check Firebase configuration and Firestore rules.');
     });
+  }, []);
+
+  useEffect(() => {
+    function blockProtectedActions(event) {
+      const protectedVideo = event.target instanceof Element
+        ? event.target.closest('.video-protected')
+        : null;
+      if (!protectedVideo) return;
+      if (event.type === 'contextmenu' || event.type === 'dragstart') {
+        event.preventDefault();
+      }
+    }
+
+    document.addEventListener('contextmenu', blockProtectedActions, true);
+    document.addEventListener('dragstart', blockProtectedActions, true);
+    return () => {
+      document.removeEventListener('contextmenu', blockProtectedActions, true);
+      document.removeEventListener('dragstart', blockProtectedActions, true);
+    };
   }, []);
 
   useEffect(() => {
