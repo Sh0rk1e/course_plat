@@ -1,62 +1,50 @@
-const provider = import.meta.env.VITE_VIDEO_PROVIDER || 'youtube';
 const tokenEndpoint = import.meta.env.VITE_VIDEO_TOKEN_ENDPOINT || '';
 
 export function getVideoProvider() {
-  return provider;
-}
-
-export function getYoutubeWatchUrl(video) {
-  const source = video.youtubeId || video.videoId || video.videoUrl || '';
-  const match = String(source).match(
-    /(?:youtube(?:-nocookie)?\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([^?&/]+)/i
-  );
-  const id = match?.[1] || (/^[\w-]{11}$/.test(String(source).trim()) ? String(source).trim() : '');
-  return id ? `https://www.youtube.com/watch?v=${encodeURIComponent(id)}` : '';
+  return 'Cloudflare Stream (signed playback)';
 }
 
 export async function getPlaybackSource(video, user) {
-  if (provider === 'cloudflare') {
-    if (!tokenEndpoint) {
-      throw new Error('Cloudflare Stream is enabled but VITE_VIDEO_TOKEN_ENDPOINT is missing.');
-    }
-
-    const id = video.videoId || video.youtubeId || video.videoUrl;
-    const tokenUrl = new URL(tokenEndpoint);
-    tokenUrl.searchParams.set('videoId', id);
-
-    const response = await fetch(tokenUrl, {
-      method: 'GET',
-      headers: { Accept: 'application/json' },
-      credentials: 'omit',
-    });
-
-    if (!response.ok) {
-      throw new Error(`Video authorization failed (${response.status}).`);
-    }
-
-    const data = await response.json();
-    if (!data.playbackUrl) {
-      throw new Error('Video authorization endpoint returned no playbackUrl.');
-    }
-
-    return {
-      type: 'cloudflare',
-      src: data.playbackUrl,
-      poster: data.poster || '',
-    };
+  if (!tokenEndpoint) {
+    throw new Error('Protected playback is not configured: VITE_VIDEO_TOKEN_ENDPOINT is missing.');
+  }
+  if (!user) {
+    throw new Error('Sign in is required to authorize video playback.');
+  }
+  if (!video.id) {
+    throw new Error('This lesson has no authorization ID.');
   }
 
-  const source = video.youtubeId || video.videoId || video.videoUrl;
-  if (!source) throw new Error('This lesson has no video source configured.');
+  const tokenUrl = new URL(tokenEndpoint);
+  const idToken = await user.getIdToken();
+  const response = await fetch(tokenUrl, {
+    method: 'POST',
+    headers: {
+      Accept: 'application/json',
+      Authorization: `Bearer ${idToken}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ lessonId: video.id }),
+    credentials: 'omit',
+    referrerPolicy: 'no-referrer',
+  });
 
-  let youtubeId = source;
-  const youtubeMatch = String(source).match(
-    /(?:youtube(?:-nocookie)?\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([^?&/]+)/
-  );
-  if (youtubeMatch) youtubeId = youtubeMatch[1];
+  if (!response.ok) {
+    throw new Error(`Video authorization failed (${response.status}).`);
+  }
+
+  const data = await response.json();
+  if (typeof data.playbackUrl !== 'string' || !data.playbackUrl) {
+    throw new Error('Video authorization endpoint returned no playbackUrl.');
+  }
+  const playbackUrl = new URL(data.playbackUrl);
+  if (playbackUrl.protocol !== 'https:' || !playbackUrl.hostname.endsWith('.cloudflarestream.com')) {
+    throw new Error('Video authorization endpoint returned an untrusted playback URL.');
+  }
 
   return {
-    type: 'youtube',
-    src: `https://www.youtube-nocookie.com/embed/${encodeURIComponent(youtubeId)}?modestbranding=1&rel=0`,
+    type: 'cloudflare',
+    src: playbackUrl.href,
+    poster: data.poster || '',
   };
 }

@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
-  addDoc, collection, deleteDoc, doc, onSnapshot, updateDoc
+  addDoc, collection, deleteDoc, deleteField, doc, onSnapshot, updateDoc
 } from 'firebase/firestore';
 import { db } from '../firebase';
 import { lessonDateKey } from '../dateUtils';
 
 const initialForm = {
-  title: '', lessonDate: '', youtubeId: '', videoId: '', videoUrl: '',
+  title: '', lessonDate: '', videoId: '',
   description: '', order: 1, isIntro: false,
 };
 
@@ -80,9 +80,7 @@ export default function AdminPanel() {
     setForm({
       title: v.title || '',
       lessonDate: lessonDateKey(v),
-      youtubeId: v.youtubeId || '',
       videoId: v.videoId || '',
-      videoUrl: v.videoUrl || '',
       description: v.description || '',
       order: v.order ?? 1,
       isIntro: Boolean(v.isIntro),
@@ -105,17 +103,21 @@ export default function AdminPanel() {
       const payload = {
         title: form.title.trim(),
         lessonDate: form.lessonDate || '',
-        youtubeId: form.youtubeId.trim(),
         videoId: form.videoId.trim(),
-        videoUrl: form.videoUrl.trim(),
         description: form.description.trim(),
         order: Number(form.order) || 1,
         isIntro: Boolean(form.isIntro),
       };
-      if (!payload.youtubeId && !payload.videoId && !payload.videoUrl) {
-        throw new Error('Enter a YouTube ID, Cloudflare Stream ID, or video URL.');
+      if (!/^[A-Za-z0-9_-]{1,128}$/.test(payload.videoId)) {
+        throw new Error('Enter a valid Cloudflare Stream video UID for protected playback.');
       }
-      if (editingId) await updateDoc(doc(db, 'videos', editingId), payload);
+      if (editingId) {
+        await updateDoc(doc(db, 'videos', editingId), {
+          ...payload,
+          youtubeId: deleteField(),
+          videoUrl: deleteField(),
+        });
+      }
       else await addDoc(collection(db, 'videos'), payload);
       setMessage(editingId ? 'Lesson updated.' : 'Lesson added.');
       reset();
@@ -203,9 +205,7 @@ export default function AdminPanel() {
           <label>Lesson title<input name="title" value={form.title} onChange={change} required /></label>
           <label>Lesson date <span className="hint">This creates the learner-facing day folder.</span><input name="lessonDate" type="date" value={form.lessonDate} onChange={change} /></label>
           <label>Lesson order <span className="hint">Order within the selected day</span><input name="order" type="number" min="1" step="1" value={form.order} onChange={change} required /></label>
-          <label>YouTube ID <span className="hint">(provider = youtube)</span><input name="youtubeId" value={form.youtubeId} onChange={change} placeholder="dQw4w9WgXcQ" /></label>
-          <label>Cloudflare Stream ID <span className="hint">(provider = cloudflare)</span><input name="videoId" value={form.videoId} onChange={change} placeholder="Stream video UID" /></label>
-          <label>Video URL <span className="hint">Optional; existing Firebase URLs can be kept here.</span><input name="videoUrl" value={form.videoUrl} onChange={change} placeholder="https://..." /></label>
+          <label>Cloudflare Stream ID <span className="hint">(required for protected playback)</span><input name="videoId" value={form.videoId} onChange={change} placeholder="Stream video UID" /></label>
           <label>Description<textarea name="description" value={form.description} onChange={change} rows="4" /></label>
           <label className="checkbox-label"><input name="isIntro" type="checkbox" checked={form.isIntro} onChange={change} /> This is the guest introductory lesson</label>
           {message && <div className="success-box">{message}</div>}
@@ -248,7 +248,7 @@ export default function AdminPanel() {
                       <input type="checkbox" checked={selected.has(v.id)} onChange={() => toggle(v.id)} aria-label={`Select ${v.title}`} />
                       <div className="admin-item-copy">
                         <strong>{v.order}. {v.title}</strong>
-                        <small>{v.videoUrl || v.videoId || v.youtubeId || 'No video source'}{v.isIntro ? ' · Guest intro' : ''}</small>
+                        <small>{v.videoId ? 'Protected Stream video' : 'Needs protected Stream upload'}{v.isIntro ? ' · Guest intro' : ''}</small>
                       </div>
                       <div className="button-row">
                         <button className="button button-small button-secondary" type="button" onClick={() => edit(v)}>Edit</button>

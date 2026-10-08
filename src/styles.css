@@ -815,21 +815,3 @@ select:focus {
     flex-direction: column;
   }
 }
-
-.video-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 14px;
-}
-
-.video-actions a {
-  display: inline-flex;
-  align-items: center;
-  text-decoration: none;
-}
-
-.video-link-status {
-  margin-top: 8px !important;
-  font-size: 12px;
-}

@@ -208,16 +208,23 @@ Use this when convenience is more important than preventing sharing.
 
 ---
 
-# 7. Option B — stronger protection with Cloudflare Stream
+# 7. Protected playback with Cloudflare Stream
 
 Set:
 
 ```env
-VITE_VIDEO_PROVIDER=cloudflare
 VITE_VIDEO_TOKEN_ENDPOINT=https://YOUR-VIDEO-AUTH-DOMAIN.example/token
 ```
 
-The browser requests authorization for the specific video.
+Playback is now Cloudflare Stream only. YouTube embedding, direct video URLs, and copy/open video-link controls are not used by the learner player. If protected playback is not configured, the player fails closed rather than falling back to YouTube.
+
+Upload course videos to Cloudflare Stream and, for every video, set `requireSignedURLs` to `true` and restrict `allowedOrigins` to the course site's hostname. Store only its Stream UID in the lesson's `videoId` field. Existing YouTube IDs cannot be hidden or made site-only; replace those videos with protected Stream uploads.
+
+Existing Firestore lesson documents may still contain `youtubeId` or `videoUrl`. Clear those legacy fields from every document (or open and save each lesson in Admin after adding its Stream UID); otherwise signed-in users with Firestore read access can inspect that metadata even though the player will not use it.
+
+Deploy the Worker in `functions/src/token-endpoint.example.js` and configure its Firebase and Cloudflare secrets as described in [functions/README.md](./functions/README.md). The Worker verifies Firebase ID tokens, relies on Firestore rules to authorize lesson reads, checks that the Stream asset is private and restricted to the site origin, and issues a one-hour non-downloadable signed playback token.
+
+These controls prevent ordinary public playback and sharing, not screen recording or a determined viewer inspecting a temporary token in their browser. Web playback cannot provide absolute copy prevention.
 
 The authorization service should:
 
@@ -347,17 +354,7 @@ VITE_VIDEO_TOKEN_ENDPOINT
 
 For example:
 
-```text
-VITE_VIDEO_PROVIDER = youtube
-```
-
-or:
-
-```text
-VITE_VIDEO_PROVIDER = cloudflare
-```
-
-Do not store video signing secrets in GitHub Pages variables. Those values belong in your server-side video authorization service.
+Do not add a video-provider override or store video signing secrets in GitHub Pages variables. The token endpoint URL is public configuration; Cloudflare credentials belong only in the Worker secret store.
 
 ---
 
@@ -436,9 +433,12 @@ Before launch:
 - [ ] Add GitHub Actions Firebase secrets.
 - [ ] Configure custom domain.
 - [ ] Add custom domain to Firebase Authorized Domains.
-- [ ] If using Cloudflare Stream, deploy the server-side token endpoint.
-- [ ] Keep all signing secrets server-side.
-- [ ] Use short-lived video tokens.
+- [ ] Deploy the Cloudflare Stream token endpoint.
+- [ ] Upload videos to Stream and enable `requireSignedURLs`.
+- [ ] Restrict every video's `allowedOrigins` to the course site hostname.
+- [ ] Set the GitHub Actions variable `VITE_VIDEO_TOKEN_ENDPOINT`.
+- [ ] Keep Cloudflare credentials server-side.
+- [ ] Use short-lived, non-downloadable video tokens.
 - [ ] Do not rely on hidden UI buttons for authorization.
 - [ ] Do not put service-account credentials in the React application.
 

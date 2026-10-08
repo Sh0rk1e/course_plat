@@ -1,19 +1,29 @@
-# Optional Cloudflare Stream token service
+# Protected Cloudflare Stream playback
 
-The frontend supports a stronger video-protection mode using Cloudflare Stream signed playback.
+`src/token-endpoint.example.js` is a Cloudflare Worker example for minting one-hour Stream tokens after verifying Firebase ID tokens.
 
-This folder contains a reference architecture rather than a deployed backend. The signing secret must NEVER be placed in the React/GitHub Pages frontend.
+Configure Worker variables:
 
-Recommended deployment:
+- `APP_ORIGIN`: exact site origin, for example `https://sh0rk1e.github.io` (no path or trailing slash).
+- `FIREBASE_PROJECT_ID`: Firebase project ID.
+- `CLOUDFLARE_ACCOUNT_ID`: Cloudflare account ID.
+- `STREAM_CUSTOMER_CODE`: customer code used by `customer-<CODE>.cloudflarestream.com`.
 
-1. Create a Cloudflare Worker/API endpoint.
-2. Keep the Cloudflare Stream signing key in the Worker secret store.
-3. Verify the Firebase ID token sent by the browser.
-4. Confirm the Firebase user is authenticated and, for full lessons, non-anonymous.
-5. Confirm the requested video is permitted.
-6. Generate a short-lived Cloudflare Stream signed token.
-7. Return `{ "playbackUrl": "https://videodelivery.net/<TOKEN>/manifest/video.m3u8" }` or the current Cloudflare Stream signed playback URL for your account.
+Configure the `CLOUDFLARE_API_TOKEN` Worker secret with Stream read/edit access. Never put it in Vite, GitHub Pages variables, or frontend code.
 
-The browser should call this endpoint only after Firebase Auth succeeds.
+Set the GitHub Actions variable `VITE_VIDEO_TOKEN_ENDPOINT` to the deployed Worker URL. The frontend now defaults to protected playback and fails closed if this endpoint is missing.
 
-Do not implement signing with a secret in Vite environment variables: VITE_* values are public and become part of the shipped JavaScript.
+## Protect each video before publishing
+
+For every Stream video:
+
+1. Upload the source to Cloudflare Stream; YouTube videos cannot be made private by this integration.
+2. Set `requireSignedURLs` to `true`.
+3. Set `allowedOrigins` to the hostname of the course site only (for GitHub Pages: `sh0rk1e.github.io`; use your custom hostname instead if you publish on one).
+4. Store the Stream UID in the lesson's `videoId` field. Do not use `youtubeId` or a public `videoUrl`.
+
+The Worker refuses to issue a token unless signed URLs and the exact configured site hostname are enabled on that Stream video. It reads the lesson through Firestore using the user's Firebase ID token, so Firestore rules continue to enforce access. Anonymous users can only receive tokens for intro lessons.
+
+## Limits
+
+The player must receive a short-lived playback token to play the video. A determined viewer can inspect browser network traffic or record the screen; no web player can guarantee that a video or its temporary playback URL is impossible to capture. Signed URLs, site-origin restrictions, short expiry, no download permission, and authenticated authorization prevent ordinary public-link/YouTube access, but they are not DRM.

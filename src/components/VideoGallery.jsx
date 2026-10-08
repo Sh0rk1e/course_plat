@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { collection, onSnapshot, query, where } from 'firebase/firestore';
 import { db } from '../firebase';
-import { getPlaybackSource, getVideoProvider, getYoutubeWatchUrl } from '../videoProvider';
+import { getPlaybackSource, getVideoProvider } from '../videoProvider';
 import { lessonDateKey } from '../dateUtils';
 
 function formatDate(dateKey) {
@@ -23,9 +23,6 @@ function dateKey(video) {
 function VideoCard({ video, locked, user }) {
   const [playback, setPlayback] = useState(null);
   const [error, setError] = useState('');
-  const [linkMessage, setLinkMessage] = useState('');
-  const youtubeUrl = getYoutubeWatchUrl(video);
-  const shareUrl = youtubeUrl || video.videoUrl || playback?.src || '';
 
   useEffect(() => {
     if (locked) return;
@@ -39,20 +36,6 @@ function VideoCard({ video, locked, user }) {
     });
     return () => { cancelled = true; };
   }, [video, locked, user]);
-
-  async function copyLink() {
-    setLinkMessage('');
-    try {
-      if (!shareUrl) throw new Error('The video link is not available yet.');
-      if (!navigator.clipboard?.writeText) {
-        throw new Error('Clipboard access is unavailable in this browser.');
-      }
-      await navigator.clipboard.writeText(shareUrl);
-      setLinkMessage('Link copied.');
-    } catch (copyError) {
-      setLinkMessage(copyError.message || 'Could not copy the video link.');
-    }
-  }
 
   return (
     <article className={`video-card ${locked ? 'is-locked' : ''}`}>
@@ -69,16 +52,8 @@ function VideoCard({ video, locked, user }) {
               src={playback.src}
               title={video.title}
               loading="lazy"
-              allow="accelerometer; autoplay; encrypted-media; picture-in-picture"
-              allowFullScreen
-            />
-          ) : playback ? (
-            <iframe
-              src={playback.src}
-              title={video.title}
-              loading="lazy"
               referrerPolicy="strict-origin-when-cross-origin"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+              allow="accelerometer; autoplay; encrypted-media; picture-in-picture"
               allowFullScreen
             />
           ) : <div className="video-loading">Authorizing video…</div>}
@@ -88,19 +63,6 @@ function VideoCard({ video, locked, user }) {
         <span className="lesson-number">Lesson {video.order ?? '—'}</span>
         <h3>{video.title}</h3>
         {video.description && <p>{video.description}</p>}
-        {!locked && (youtubeUrl || shareUrl) && (
-          <div className="video-actions">
-            {youtubeUrl && (
-              <a className="button button-small button-secondary" href={youtubeUrl} target="_blank" rel="noopener noreferrer">
-                Watch on YouTube
-              </a>
-            )}
-            <button className="button button-small button-secondary" type="button" onClick={copyLink}>
-              Copy link
-            </button>
-          </div>
-        )}
-        {linkMessage && <p className="video-link-status" role="status">{linkMessage}</p>}
       </div>
     </article>
   );

@@ -10,7 +10,6 @@ const userDefaults = {
 
 const adminDefaults = {
   autoDateParsing: true,
-  defaultProvider: 'youtube',
   guestIntroEnabled: true,
 };
 
@@ -38,7 +37,10 @@ export default function Settings({ user, profile, isAdmin = false }) {
           // existing per-user rules.
           const data = userSnap.exists() ? userSnap.data() : {};
           if (!cancelled && data.adminSettings) {
-            setAdminForm({ ...adminDefaults, ...data.adminSettings });
+            setAdminForm({
+              autoDateParsing: data.adminSettings.autoDateParsing ?? adminDefaults.autoDateParsing,
+              guestIntroEnabled: data.adminSettings.guestIntroEnabled ?? adminDefaults.guestIntroEnabled,
+            });
           }
         }
       } catch (err) {
@@ -80,7 +82,10 @@ export default function Settings({ user, profile, isAdmin = false }) {
     setBusy(true); setError(''); setMessage('');
     try {
       await setDoc(doc(db, 'users', user.uid), {
-        adminSettings: { ...adminForm },
+        adminSettings: {
+          autoDateParsing: Boolean(adminForm.autoDateParsing),
+          guestIntroEnabled: Boolean(adminForm.guestIntroEnabled),
+        },
         updatedAt: serverTimestamp(),
       }, { merge: true });
       setMessage('Admin settings were saved.');
@@ -146,7 +151,6 @@ export default function Settings({ user, profile, isAdmin = false }) {
               {tab === 'automation' && <>
                 <div><h2>Lesson automation</h2><p className="muted">Control how newly imported or existing lesson names are interpreted.</p></div>
                 <label className="setting-toggle"><input type="checkbox" checked={adminForm.autoDateParsing} onChange={e => updateAdmin('autoDateParsing', e.target.checked)} /><span><strong>Automatic date parsing</strong><small>Recognize dates such as 02.09.26 or 07.09.2026 in lesson titles.</small></span></label>
-                <label>Default video provider<select value={adminForm.defaultProvider} onChange={e => updateAdmin('defaultProvider', e.target.value)}><option value="youtube">YouTube</option><option value="cloudflare">Cloudflare Stream</option><option value="auto">Auto-detect</option></select></label>
               </>}
               {tab === 'access' && <>
                 <div><h2>Access</h2><p className="muted">Control the introductory guest experience.</p></div>
