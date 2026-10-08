@@ -164,21 +164,11 @@ A normal user cannot promote themselves because the Firestore rule requires the 
 
 # 5. Add lessons
 
-Admin → Add lesson.
-
-For YouTube mode:
-
-```text
-youtubeId = dQw4w9WgXcQ
-```
-
-For Cloudflare Stream mode:
+Admin → Add lesson. Upload each video to Cloudflare Stream first, set its protected playback settings as described below, then enter its Stream UID:
 
 ```text
 videoId = your Cloudflare Stream UID
 ```
-
-You can keep both IDs on a lesson if you want to switch providers later.
 
 Exactly one lesson should normally have:
 
@@ -188,27 +178,7 @@ isIntro = true
 
 ---
 
-# 6. Option A — YouTube
-
-Default:
-
-```env
-VITE_VIDEO_PROVIDER=youtube
-```
-
-The player uses:
-
-```text
-https://www.youtube-nocookie.com/embed/VIDEO_ID?modestbranding=1&rel=0
-```
-
-This provides privacy-enhanced embedding but **does not provide true content access control**.
-
-Use this when convenience is more important than preventing sharing.
-
----
-
-# 7. Protected playback with Cloudflare Stream
+# 6. Protected playback with Cloudflare Stream
 
 Set:
 
@@ -226,43 +196,11 @@ Deploy the Worker in `functions/src/token-endpoint.example.js` and configure its
 
 These controls prevent ordinary public playback and sharing, not screen recording or a determined viewer inspecting a temporary token in their browser. Web playback cannot provide absolute copy prevention.
 
-The authorization service should:
-
-1. Receive the Firebase ID token.
-2. Verify the Firebase token server-side.
-3. Identify the Firebase UID.
-4. Reject anonymous users for locked lessons.
-5. Confirm the requested Stream UID is an allowed course lesson.
-6. Generate a short-lived Cloudflare Stream signed playback token.
-7. Return only the short-lived playback URL.
-
-The signing key belongs in the backend secret store.
-
-### Never do this
-
-```env
-VITE_CLOUDFLARE_SIGNING_SECRET=...
-```
-
-Anything beginning with `VITE_` can be shipped to browsers.
-
-The reference architecture is in:
-
-```text
-functions/src/token-endpoint.example.js
-```
-
-and the implementation guidance is in:
-
-```text
-functions/README.md
-```
-
-For production, I recommend a Cloudflare Worker or another server-side endpoint rather than attempting to sign playback URLs in GitHub Pages.
+The Worker configuration, video privacy requirements, and limitations are documented in [functions/README.md](./functions/README.md).
 
 ---
 
-# 8. Custom GitHub Pages domain
+# 7. Custom GitHub Pages domain
 
 GitHub Pages supports a custom domain.
 
@@ -310,7 +248,7 @@ Firebase Console → Authentication → Settings → Authorized domains.
 
 ---
 
-# 9. GitHub Actions deployment
+# 8. GitHub Actions deployment
 
 This version uses:
 
@@ -343,22 +281,19 @@ VITE_FIREBASE_MESSAGING_SENDER_ID
 VITE_FIREBASE_APP_ID
 ```
 
-### Optional repository variables
+### Required repository variable
 
 Settings → Secrets and variables → Actions → Variables:
 
 ```text
-VITE_VIDEO_PROVIDER
 VITE_VIDEO_TOKEN_ENDPOINT
 ```
 
-For example:
-
-Do not add a video-provider override or store video signing secrets in GitHub Pages variables. The token endpoint URL is public configuration; Cloudflare credentials belong only in the Worker secret store.
+The token endpoint URL is public configuration; Cloudflare credentials belong only in the Worker secret store. If this variable is absent, video playback intentionally fails closed.
 
 ---
 
-# 10. GitHub repository setup
+# 9. GitHub repository setup
 
 ```bash
 git init
@@ -375,7 +310,7 @@ You no longer need the old `npm run deploy` workflow, although the package still
 
 ---
 
-# 11. GitHub Pages routing
+# 10. GitHub Pages routing
 
 The application uses React Router with BrowserRouter.
 
@@ -391,7 +326,7 @@ The application also restores the requested route.
 
 ---
 
-# 12. Data model
+# 11. Data model
 
 ## users/{uid}
 
@@ -406,20 +341,17 @@ createdAt: timestamp
 
 ```text
 title: string
-youtubeId: string
 videoId: string
 description: string
 order: number
 isIntro: boolean
 ```
 
-`youtubeId` is used by YouTube mode.
-
-`videoId` is used by Cloudflare Stream mode.
+Only Cloudflare Stream UIDs are used for protected playback. Remove any legacy `youtubeId` and public `videoUrl` fields from existing lesson documents.
 
 ---
 
-# 13. Production security checklist
+# 12. Production security checklist
 
 Before launch:
 
@@ -444,7 +376,7 @@ Before launch:
 
 ---
 
-# 14. What I need from you later
+# 13. What I need from you later
 
 When you're ready, provide the Firebase Web App configuration values:
 
@@ -463,7 +395,7 @@ I can then prepare the project configuration around your actual Firebase project
 
 ---
 
-# 15. Build
+# 14. Build
 
 ```bash
 npm run build

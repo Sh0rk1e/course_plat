@@ -51,7 +51,7 @@ export default function AdminPanel() {
     return videos.filter(v => {
       const date = lessonDateKey(v);
       const matchesDate = dateFilter === 'all' || date === dateFilter;
-      const haystack = `${v.title || ''} ${v.description || ''} ${v.videoId || ''} ${v.youtubeId || ''}`.toLowerCase();
+      const haystack = `${v.title || ''} ${v.description || ''} ${v.videoId || ''}`.toLowerCase();
       return matchesDate && (!term || haystack.includes(term));
     });
   }, [videos, search, dateFilter]);

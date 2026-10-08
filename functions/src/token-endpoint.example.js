@@ -104,7 +104,9 @@ async function getLesson(videoId, projectId, token) {
   const response = await fetch(`https://firestore.googleapis.com/v1/${path}`, {
     headers: { Authorization: `Bearer ${token}` },
   });
-  if (!response.ok) throw new Error('Lesson access denied.');
+  if (response.status === 403) throw new Error('Lesson access denied.');
+  if (response.status === 404) throw new Error('Lesson was not found.');
+  if (!response.ok) throw new Error('Firestore lesson lookup failed.');
 
   const document = await response.json();
   const fields = document.fields || {};
@@ -173,7 +175,13 @@ export default {
       const tokenMatch = authorization.match(/^Bearer (.+)$/);
       if (!tokenMatch) return jsonResponse({ error: 'Authentication required.' }, 401, corsOrigin);
 
-      const claims = await verifyFirebaseIdToken(tokenMatch[1], env.FIREBASE_PROJECT_ID);
+      let claims;
+      try {
+        claims = await verifyFirebaseIdToken(tokenMatch[1], env.FIREBASE_PROJECT_ID);
+      } catch (error) {
+        console.warn('Firebase ID token verification failed.', error);
+        return jsonResponse({ error: 'Authentication failed.' }, 401, corsOrigin);
+      }
       const body = await request.json();
       if (typeof body.lessonId !== 'string' || !/^[A-Za-z0-9_-]{1,150}$/.test(body.lessonId)) {
         return jsonResponse({ error: 'Invalid lesson ID.' }, 400, corsOrigin);
@@ -224,7 +232,13 @@ export default {
       }, 200, corsOrigin);
     } catch (error) {
       console.error('Protected playback authorization failed.', error);
-      return jsonResponse({ error: 'Could not authorize protected playback.' }, 401, corsOrigin);
+      if (error.message === 'Lesson access denied.') {
+        return jsonResponse({ error: 'Lesson access denied.' }, 403, corsOrigin);
+      }
+      if (error.message === 'Lesson was not found.') {
+        return jsonResponse({ error: 'Lesson was not found.' }, 404, corsOrigin);
+      }
+      return jsonResponse({ error: 'Could not authorize protected playback.' }, 500, corsOrigin);
     }
   },
 };
