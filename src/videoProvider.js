@@ -5,6 +5,15 @@ export function getVideoProvider() {
   return provider;
 }
 
+export function getYoutubeWatchUrl(video) {
+  const source = video.youtubeId || video.videoId || video.videoUrl || '';
+  const match = String(source).match(
+    /(?:youtube(?:-nocookie)?\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([^?&/]+)/i
+  );
+  const id = match?.[1] || (/^[\w-]{11}$/.test(String(source).trim()) ? String(source).trim() : '');
+  return id ? `https://www.youtube.com/watch?v=${encodeURIComponent(id)}` : '';
+}
+
 export async function getPlaybackSource(video, user) {
   if (provider === 'cloudflare') {
     if (!tokenEndpoint) {

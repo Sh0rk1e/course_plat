@@ -3,6 +3,7 @@ import {
   addDoc, collection, deleteDoc, doc, onSnapshot, updateDoc
 } from 'firebase/firestore';
 import { db } from '../firebase';
+import { lessonDateKey } from '../dateUtils';
 
 const initialForm = {
   title: '', lessonDate: '', youtubeId: '', videoId: '', videoUrl: '',
@@ -19,7 +20,7 @@ function dateLabel(dateKey) {
 }
 
 function sortLessons(a, b) {
-  const dateCompare = (a.lessonDate || a.date || '').localeCompare(b.lessonDate || b.date || '');
+  const dateCompare = lessonDateKey(a).localeCompare(lessonDateKey(b));
   if (dateCompare !== 0) return dateCompare;
   return (Number(a.order) || 0) - (Number(b.order) || 0);
 }
@@ -43,12 +44,12 @@ export default function AdminPanel() {
     return unsubscribe;
   }, []);
 
-  const dates = useMemo(() => [...new Set(videos.map(v => v.lessonDate || v.date || '').filter(Boolean))].sort(), [videos]);
+  const dates = useMemo(() => [...new Set(videos.map(lessonDateKey).filter(Boolean))].sort(), [videos]);
 
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase();
     return videos.filter(v => {
-      const date = v.lessonDate || v.date || '';
+      const date = lessonDateKey(v);
       const matchesDate = dateFilter === 'all' || date === dateFilter;
       const haystack = `${v.title || ''} ${v.description || ''} ${v.videoId || ''} ${v.youtubeId || ''}`.toLowerCase();
       return matchesDate && (!term || haystack.includes(term));
@@ -58,7 +59,7 @@ export default function AdminPanel() {
   const grouped = useMemo(() => {
     const map = new Map();
     filtered.forEach(v => {
-      const key = v.lessonDate || v.date || '';
+      const key = lessonDateKey(v);
       if (!map.has(key)) map.set(key, []);
       map.get(key).push(v);
     });
@@ -78,7 +79,7 @@ export default function AdminPanel() {
     setEditingId(v.id);
     setForm({
       title: v.title || '',
-      lessonDate: v.lessonDate || v.date || '',
+      lessonDate: lessonDateKey(v),
       youtubeId: v.youtubeId || '',
       videoId: v.videoId || '',
       videoUrl: v.videoUrl || '',
@@ -193,7 +194,7 @@ export default function AdminPanel() {
         <div className="stat-card"><strong>{videos.length}</strong><span>Total lessons</span></div>
         <div className="stat-card"><strong>{dates.length}</strong><span>Lesson days</span></div>
         <div className="stat-card"><strong>{videos.filter(v => v.isIntro).length}</strong><span>Guest intro</span></div>
-        <div className="stat-card"><strong>{videos.filter(v => !(v.lessonDate || v.date)).length}</strong><span>Unscheduled</span></div>
+        <div className="stat-card"><strong>{videos.filter(v => !lessonDateKey(v)).length}</strong><span>Unscheduled</span></div>
       </div>
 
       <div className="admin-layout">
