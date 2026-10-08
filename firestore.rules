@@ -46,6 +46,17 @@ service cloud.firestore {
           && request.resource.data.role == resource.data.role);
 
       allow delete: if isAdmin();
+
+      match /lessonProgress/{lessonId} {
+        allow read, delete: if signedIn() && request.auth.uid == userId;
+        allow create, update: if signedIn()
+          && request.auth.uid == userId
+          && request.resource.data.keys().hasOnly(['completed', 'saved', 'updatedAt'])
+          && request.resource.data.keys().hasAll(['completed', 'saved', 'updatedAt'])
+          && request.resource.data.completed is bool
+          && request.resource.data.saved is bool
+          && request.resource.data.updatedAt == request.time;
+      }
     }
 
 

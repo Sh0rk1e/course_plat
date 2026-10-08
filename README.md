@@ -513,3 +513,19 @@ After uploading this project, deploy the Firestore rules to the same Firebase pr
 ## Admin authorization
 
 Admin/user authorization is controlled solely by Firebase Authentication custom claims. The app checks the Firebase ID token's `admin` claim, and Firestore rules use `request.auth.token.admin == true`. No email address or Firestore `users/{uid}.role` value grants admin access. See `scripts/README.md` for the one-time claim setup procedure.
+
+## Lesson progress, saved lessons, and dates
+
+Signed-in users can mark lessons complete, save lessons, review their course progress, and filter/search the lesson library. This state is stored separately for each account in:
+
+```text
+users/{uid}/lessonProgress/{lessonId}
+```
+
+Firestore rules allow only that account to read or change its lesson progress. Deploy the updated rules with:
+
+```bash
+firebase deploy --only firestore:rules
+```
+
+Lesson dates continue to be inferred automatically from supported dates at the beginning of lesson names. An explicitly assigned lesson date continues to take precedence. YouTube playback and the existing player interface are unchanged.

@@ -1,11 +1,12 @@
-import { useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore';
 import { auth, db, onAuthStateChanged, signOut, getIdTokenResult } from './firebase';
 import { Navigate, Link, Routes, Route, useLocation } from 'react-router-dom';
-import Auth from './components/Auth';
 import VideoGallery from './components/VideoGallery';
-import AdminPanel from './components/AdminPanel';
-import Settings from './components/Settings';
+
+const Auth = lazy(() => import('./components/Auth'));
+const AdminPanel = lazy(() => import('./components/AdminPanel'));
+const Settings = lazy(() => import('./components/Settings'));
 
 function isAdminAccount(user, claims = {}, profile = null) {
   return Boolean(
@@ -59,11 +60,26 @@ function Layout({ user, profile, isAdmin, children }) {
 
   return (
     <div className="app-shell">
+      <a className="skip-link" href="#main-content">Skip to content</a>
       <header className="topbar">
         <Link to="/" className="brand">Course Platform</Link>
-        <nav>
-          <Link className={location.pathname === '/' ? 'active' : ''} to="/">Lessons</Link>
-          {admin && <Link className={location.pathname === '/admin' ? 'active' : ''} to="/admin">Admin</Link>}
+        <nav aria-label="Main navigation">
+          <Link
+            className={location.pathname === '/' ? 'active' : ''}
+            aria-current={location.pathname === '/' ? 'page' : undefined}
+            to="/"
+          >
+            Lessons
+          </Link>
+          {admin && (
+            <Link
+              className={location.pathname === '/admin' ? 'active' : ''}
+              aria-current={location.pathname === '/admin' ? 'page' : undefined}
+              to="/admin"
+            >
+              Admin
+            </Link>
+          )}
           <div className="account-menu" ref={menuRef}>
             <button
               type="button"
@@ -97,7 +113,7 @@ function Layout({ user, profile, isAdmin, children }) {
           </div>
         </nav>
       </header>
-      <main className="container">{children}</main>
+      <main id="main-content" className="container">{children}</main>
     </div>
   );
 }
@@ -152,7 +168,9 @@ export default function App() {
 
   return (
     <Routes>
-      <Route path="/auth" element={user ? <Navigate to="/" replace /> : <Auth />} />
+      <Route path="/auth" element={user ? <Navigate to="/" replace /> : (
+        <Suspense fallback={<Loading />}><Auth /></Suspense>
+      )} />
       <Route path="/" element={
         <Protected user={user}>
           <Layout user={user} profile={profile} isAdmin={admin}><VideoGallery user={user} /></Layout>
@@ -161,13 +179,19 @@ export default function App() {
       <Route path="/admin" element={
         <Protected user={user}>
           {admin
-            ? <Layout user={user} profile={profile} isAdmin={admin}><AdminPanel /></Layout>
+            ? <Layout user={user} profile={profile} isAdmin={admin}>
+              <Suspense fallback={<Loading />}><AdminPanel /></Suspense>
+            </Layout>
             : <Navigate to="/" replace />}
         </Protected>
       } />
       <Route path="/settings" element={
         <Protected user={user}>
-          <Layout user={user} profile={profile} isAdmin={admin}><Settings user={user} profile={profile} isAdmin={admin} /></Layout>
+          <Layout user={user} profile={profile} isAdmin={admin}>
+            <Suspense fallback={<Loading />}>
+              <Settings user={user} profile={profile} isAdmin={admin} />
+            </Suspense>
+          </Layout>
         </Protected>
       } />
       <Route path="*" element={<Navigate to={user ? '/' : '/auth'} replace />} />

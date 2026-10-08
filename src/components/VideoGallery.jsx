@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
-import { collection, doc, onSnapshot, query, where } from 'firebase/firestore';
+import {
+  collection, doc, onSnapshot, query, setDoc, serverTimestamp, where,
+} from 'firebase/firestore';
 import { db } from '../firebase';
 import { getPlaybackSource, getVideoProvider } from '../videoProvider';
 import { lessonDateKey } from '../dateUtils';
@@ -20,7 +22,9 @@ function dateKey(video) {
   return lessonDateKey(video);
 }
 
-function VideoCard({ video, locked, user, preferences }) {
+function VideoCard({
+  video, locked, user, preferences, progress, onProgressChange, saving,
+}) {
   const [playback, setPlayback] = useState(null);
   const [error, setError] = useState('');
   useEffect(() => {
@@ -80,6 +84,29 @@ function VideoCard({ video, locked, user, preferences }) {
         <span className="lesson-number">Lesson {video.order ?? '—'}</span>
         <h3>{video.title}</h3>
         {video.description && preferences.showDescriptions && <p>{video.description}</p>}
+        <div className="lesson-actions" aria-label={`Study tools for ${video.title}`}>
+          <button
+            type="button"
+            className={`lesson-action${progress.completed ? ' active' : ''}`}
+            aria-pressed={Boolean(progress.completed)}
+            disabled={saving}
+            onClick={() => onProgressChange(video.id, { completed: !progress.completed })}
+          >
+            <span aria-hidden="true">{progress.completed ? '✓' : '○'}</span>
+            {progress.completed ? 'Completed' : 'Mark complete'}
+          </button>
+          <button
+            type="button"
+            className={`lesson-action${progress.saved ? ' active' : ''}`}
+            aria-pressed={Boolean(progress.saved)}
+            aria-label={`${progress.saved ? 'Remove saved lesson' : 'Save lesson'}: ${video.title}`}
+            disabled={saving}
+            onClick={() => onProgressChange(video.id, { saved: !progress.saved })}
+          >
+            <span aria-hidden="true">{progress.saved ? '★' : '☆'}</span>
+            {progress.saved ? 'Saved' : 'Save lesson'}
+          </button>
+        </div>
       </div>
     </article>
   );
@@ -89,6 +116,11 @@ export default function VideoGallery({ user }) {
   const [videos, setVideos] = useState([]);
   const [selectedDate, setSelectedDate] = useState(null);
   const [error, setError] = useState('');
+  const [progressError, setProgressError] = useState('');
+  const [progress, setProgress] = useState({});
+  const [savingLessonId, setSavingLessonId] = useState(null);
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [search, setSearch] = useState('');
   const [preferences, setPreferences] = useState({ showDescriptions: true, reduceMotion: false });
 
   useEffect(() => {
@@ -103,6 +135,25 @@ export default function VideoGallery({ user }) {
       setError('Unable to load lessons. Check Firebase configuration and Firestore rules.');
     });
   }, []);
+
+  useEffect(() => {
+    setProgress({});
+    setProgressError('');
+    return onSnapshot(collection(db, 'users', user.uid, 'lessonProgress'), snapshot => {
+      const nextProgress = {};
+      snapshot.docs.forEach(item => {
+        nextProgress[item.id] = {
+          completed: Boolean(item.data().completed),
+          saved: Boolean(item.data().saved),
+        };
+      });
+      setProgress(nextProgress);
+      setProgressError('');
+    }, err => {
+      console.error('Lesson progress error:', err);
+      setProgressError('Unable to load your lesson progress. Check your Firestore rules and try again.');
+    });
+  }, [user.uid]);
 
   useEffect(() => {
     function blockProtectedActions(event) {
@@ -155,18 +206,54 @@ export default function VideoGallery({ user }) {
       .map(([key, items]) => ({ key, items }));
   }, [sorted]);
 
-  useEffect(() => {
-    if (selectedDate === null && groups.length) setSelectedDate(groups[0].key);
-    if (selectedDate !== null && groups.length && !groups.some(g => g.key === selectedDate)) {
-      setSelectedDate(groups[0].key);
-    }
-  }, [groups, selectedDate]);
+  const completedCount = sorted.filter(video => progress[video.id]?.completed).length;
+  const savedCount = sorted.filter(video => progress[video.id]?.saved).length;
 
-  const activeGroup = groups.find(group => group.key === selectedDate) || groups[0];
-  
+  const visibleGroups = useMemo(() => {
+    const term = search.trim().toLocaleLowerCase();
+    return groups.map(group => ({
+      ...group,
+      items: group.items.filter(video => {
+        const itemProgress = progress[video.id] || {};
+        const matchesStatus = statusFilter === 'all'
+          || (statusFilter === 'saved' && itemProgress.saved)
+          || (statusFilter === 'completed' && itemProgress.completed);
+        const searchableText = `${video.title || ''} ${video.description || ''}`.toLocaleLowerCase();
+        return matchesStatus && (!term || searchableText.includes(term));
+      }),
+    })).filter(group => group.items.length > 0);
+  }, [groups, progress, search, statusFilter]);
+
+  useEffect(() => {
+    if (selectedDate === null && visibleGroups.length) setSelectedDate(visibleGroups[0].key);
+    if (selectedDate !== null && visibleGroups.length && !visibleGroups.some(g => g.key === selectedDate)) {
+      setSelectedDate(visibleGroups[0].key);
+    }
+  }, [visibleGroups, selectedDate]);
+
+  const activeGroup = visibleGroups.find(group => group.key === selectedDate) || visibleGroups[0];
+
+  async function updateProgress(videoId, changes) {
+    setSavingLessonId(videoId);
+    setProgressError('');
+    const current = progress[videoId] || {};
+    try {
+      await setDoc(doc(db, 'users', user.uid, 'lessonProgress', videoId), {
+        completed: Boolean(current.completed),
+        saved: Boolean(current.saved),
+        ...changes,
+        updatedAt: serverTimestamp(),
+      });
+    } catch (err) {
+      console.error('Lesson progress save error:', err);
+      setProgressError('Unable to save your lesson progress. Check your connection and try again.');
+    } finally {
+      setSavingLessonId(null);
+    }
+  }
 
   return (
-    <section>
+    <section className={preferences.reduceMotion ? 'reduce-motion' : ''}>
       <div className="hero course-hero">
         <div>
           <div className="eyebrow">YOUR COURSE</div>
@@ -180,16 +267,70 @@ export default function VideoGallery({ user }) {
       </div>
 
       {error && <div className="error-box">{error}</div>}
+      {progressError && <div className="error-box" role="alert">{progressError}</div>}
       {!error && !sorted.length && <div className="empty-state">No lessons have been published yet.</div>}
 
       {!!groups.length && (
         <>
-          <div className="day-folder-grid" aria-label="Lesson days">
-            {groups.map(group => (
+          <section className="progress-overview panel" aria-label="Your learning progress">
+            <div className="progress-overview-heading">
+              <div>
+                <div className="eyebrow">YOUR PROGRESS</div>
+                <h2>{completedCount} of {sorted.length} lessons completed</h2>
+              </div>
+              <div className="progress-totals">
+                <span><strong>{savedCount}</strong> saved</span>
+                <span><strong>{Math.round((completedCount / sorted.length) * 100)}%</strong> complete</span>
+              </div>
+            </div>
+            <div
+              className="progress-track"
+              role="progressbar"
+              aria-label="Course completion"
+              aria-valuemin="0"
+              aria-valuemax={sorted.length}
+              aria-valuenow={completedCount}
+            >
+              <span style={{ width: `${(completedCount / sorted.length) * 100}%` }} />
+            </div>
+          </section>
+
+          <div className="lesson-library-tools">
+            <div className="lesson-filters" role="group" aria-label="Filter lessons">
+              {[
+                ['all', `All lessons (${sorted.length})`],
+                ['saved', `Saved (${savedCount})`],
+                ['completed', `Completed (${completedCount})`],
+              ].map(([filter, label]) => (
+                <button
+                  key={filter}
+                  type="button"
+                  className={`lesson-filter${statusFilter === filter ? ' active' : ''}`}
+                  aria-pressed={statusFilter === filter}
+                  onClick={() => setStatusFilter(filter)}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            <label className="lesson-search">
+              <span className="visually-hidden">Search lessons</span>
+              <input
+                type="search"
+                value={search}
+                onChange={event => setSearch(event.target.value)}
+                placeholder="Search lessons…"
+              />
+            </label>
+          </div>
+
+          <div className="day-folder-grid" role="group" aria-label="Lesson days">
+            {visibleGroups.map(group => (
               <button
                 type="button"
                 className={`day-folder ${selectedDate === group.key ? 'selected' : ''}`}
                 key={group.key || 'unscheduled'}
+                aria-pressed={selectedDate === group.key}
                 onClick={() => setSelectedDate(group.key)}
               >
                 <span className="folder-icon" aria-hidden="true" />
@@ -201,6 +342,10 @@ export default function VideoGallery({ user }) {
               </button>
             ))}
           </div>
+
+          {!visibleGroups.length && (
+            <div className="empty-state">No lessons match this filter. Try another search or filter.</div>
+          )}
 
           {activeGroup && (
             <section className="lesson-day" aria-labelledby="active-day-title">
@@ -218,6 +363,9 @@ export default function VideoGallery({ user }) {
                     video={video}
                     user={user}
                     preferences={preferences}
+                    progress={progress[video.id] || {}}
+                    onProgressChange={updateProgress}
+                    saving={savingLessonId === video.id}
                     locked={user.isAnonymous && !video.isIntro}
                   />
                 ))}
