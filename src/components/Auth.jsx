@@ -38,7 +38,7 @@ export default function Auth() {
       <section className="auth-card">
         <div className="eyebrow">LEARNING PLATFORM</div>
         <h1>Learn at your own pace.</h1>
-        <p className="muted">Guests can preview the first lesson from each day. Create an account for all lessons.</p>
+        <p className="muted">Guests can preview the introduction. Create an account for all lessons.</p>
 
         <button className="button button-google" disabled={busy}
           onClick={() => run(() => signInWithPopup(auth, googleProvider))}>
@@ -65,7 +65,7 @@ export default function Auth() {
 
         <div className="guest-section">
           <button className="button button-secondary" disabled={busy} onClick={() => run(() => signInAnonymously(auth))}>Continue as guest</button>
-          <small>Guest access includes the first lesson from each day.</small>
+          <small>Guest access includes the introductory lesson only.</small>
         </div>
       </section>
     </div>

@@ -8,7 +8,6 @@ import {
   signInAnonymously,
   signOut,
   onAuthStateChanged,
-  getIdTokenResult,
 } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 
@@ -45,5 +44,4 @@ export {
   signInAnonymously,
   signOut,
   onAuthStateChanged,
-  getIdTokenResult,
 };

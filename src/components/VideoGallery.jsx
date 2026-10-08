@@ -1,8 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
-import { collection, doc, onSnapshot, query, where } from 'firebase/firestore';
+import { collection, onSnapshot, query, where } from 'firebase/firestore';
 import { db } from '../firebase';
 import { getPlaybackSource, getVideoProvider } from '../videoProvider';
-import { lessonDateKey } from '../dateUtils';
 
 function formatDate(dateKey) {
   if (!dateKey) return 'Unscheduled';
@@ -17,12 +16,13 @@ function formatDate(dateKey) {
 }
 
 function dateKey(video) {
-  return lessonDateKey(video);
+  return video.lessonDate || video.date || '';
 }
 
-function VideoCard({ video, locked, user, preferences }) {
+function VideoCard({ video, locked, user }) {
   const [playback, setPlayback] = useState(null);
   const [error, setError] = useState('');
+
   useEffect(() => {
     if (locked) return;
     let cancelled = false;
@@ -36,8 +36,6 @@ function VideoCard({ video, locked, user, preferences }) {
     return () => { cancelled = true; };
   }, [video, locked, user]);
 
-
-
   return (
     <article className={`video-card ${locked ? 'is-locked' : ''}`}>
       {locked ? (
@@ -47,19 +45,13 @@ function VideoCard({ video, locked, user, preferences }) {
           <p>Create an account to unlock all lessons.</p>
         </div>
       ) : (
-        <div
-          className="video-frame video-protected"
-          onContextMenu={event => event.preventDefault()}
-          onDragStart={event => event.preventDefault()}
-        >
+        <div className="video-frame">
           {error ? <div className="video-error">{error}</div> : playback?.type === 'cloudflare' ? (
             <iframe
               src={playback.src}
               title={video.title}
               loading="lazy"
-              draggable="false"
-              sandbox="allow-scripts allow-same-origin allow-presentation"
-              allow="accelerometer; autoplay; encrypted-media; picture-in-picture; fullscreen"
+              allow="accelerometer; autoplay; encrypted-media; picture-in-picture"
               allowFullScreen
             />
           ) : playback ? (
@@ -67,10 +59,8 @@ function VideoCard({ video, locked, user, preferences }) {
               src={playback.src}
               title={video.title}
               loading="lazy"
-              draggable="false"
-              sandbox="allow-scripts allow-same-origin allow-presentation"
               referrerPolicy="strict-origin-when-cross-origin"
-              allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture; web-share"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
               allowFullScreen
             />
           ) : <div className="video-loading">Authorizing video…</div>}
@@ -79,7 +69,7 @@ function VideoCard({ video, locked, user, preferences }) {
       <div className="video-meta">
         <span className="lesson-number">Lesson {video.order ?? '—'}</span>
         <h3>{video.title}</h3>
-        {video.description && preferences.showDescriptions && <p>{video.description}</p>}
+        {video.description && <p>{video.description}</p>}
       </div>
     </article>
   );
@@ -89,7 +79,6 @@ export default function VideoGallery({ user }) {
   const [videos, setVideos] = useState([]);
   const [selectedDate, setSelectedDate] = useState(null);
   const [error, setError] = useState('');
-  const [preferences, setPreferences] = useState({ showDescriptions: true, reduceMotion: false });
 
   useEffect(() => {
     const q = user.isAnonymous
@@ -103,35 +92,6 @@ export default function VideoGallery({ user }) {
       setError('Unable to load lessons. Check Firebase configuration and Firestore rules.');
     });
   }, []);
-
-  useEffect(() => {
-    function blockProtectedActions(event) {
-      const protectedVideo = event.target instanceof Element
-        ? event.target.closest('.video-protected')
-        : null;
-      if (!protectedVideo) return;
-      if (event.type === 'contextmenu' || event.type === 'dragstart') {
-        event.preventDefault();
-      }
-    }
-
-    document.addEventListener('contextmenu', blockProtectedActions, true);
-    document.addEventListener('dragstart', blockProtectedActions, true);
-    return () => {
-      document.removeEventListener('contextmenu', blockProtectedActions, true);
-      document.removeEventListener('dragstart', blockProtectedActions, true);
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!user || user.isAnonymous) return undefined;
-    return onSnapshot(doc(db, 'users', user.uid), snapshot => {
-      const data = snapshot.exists() ? snapshot.data() : {};
-      setPreferences(prev => ({ ...prev, ...(data.preferences || {}) }));
-    }, err => {
-      console.error('Preference error:', err);
-    });
-  }, [user]);
 
   const sorted = useMemo(() => [...videos].sort((a, b) => {
     const dateCompare = dateKey(a).localeCompare(dateKey(b));
@@ -163,7 +123,7 @@ export default function VideoGallery({ user }) {
   }, [groups, selectedDate]);
 
   const activeGroup = groups.find(group => group.key === selectedDate) || groups[0];
-  
+  const introId = sorted.find(v => v.isIntro)?.id;
 
   return (
     <section>
@@ -173,8 +133,8 @@ export default function VideoGallery({ user }) {
           <h1>Course lessons</h1>
           <p className="muted">
             {user.isAnonymous
-              ? 'Guest preview: lessons marked as Guest intro are available.'
-              : `Choose a lesson day below. Dates are read automatically from lesson names when needed. Provider: ${getVideoProvider()}.`}
+              ? 'Guest preview: the introduction is available.'
+              : `Choose a lesson day below. Provider: ${getVideoProvider()}.`}
           </p>
         </div>
       </div>
@@ -192,7 +152,7 @@ export default function VideoGallery({ user }) {
                 key={group.key || 'unscheduled'}
                 onClick={() => setSelectedDate(group.key)}
               >
-                <span className="folder-icon" aria-hidden="true" />
+                <span className="folder-icon">📁</span>
                 <span className="day-folder-copy">
                   <strong>{formatDate(group.key)}</strong>
                   <small>{group.items.length} {group.items.length === 1 ? 'lesson' : 'lessons'}</small>
@@ -217,8 +177,7 @@ export default function VideoGallery({ user }) {
                     key={video.id}
                     video={video}
                     user={user}
-                    preferences={preferences}
-                    locked={user.isAnonymous && !video.isIntro}
+                    locked={user.isAnonymous && video.id !== introId}
                   />
                 ))}
               </div>

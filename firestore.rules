@@ -12,19 +12,10 @@ service cloud.firestore {
         && request.auth.token.firebase.sign_in_provider == "anonymous";
     }
 
-    // Admin authorization is stored in Firebase. Support both Firebase
-    // Authentication custom claims and the user's Firebase/Firestore profile
-    // role so existing admin accounts with role: "admin" keep working.
     function isAdmin() {
-      return signedIn() && (
-        request.auth.token.admin == true
-        || request.auth.token.isAdmin == true
-        || request.auth.token.role == 'admin'
-        || (
-          exists(/databases/$(database)/documents/users/$(request.auth.uid))
-          && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin'
-        )
-      );
+      return signedIn()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "admin";
     }
 
     function isRegisteredUser() {
@@ -34,31 +25,21 @@ service cloud.firestore {
     match /users/{userId} {
       allow create: if signedIn()
         && request.auth.uid == userId
-        && request.resource.data.email == request.auth.token.email
-        && (!("role" in request.resource.data) || request.resource.data.role != 'admin');
+        && request.resource.data.role == "user"
+        && request.resource.data.email == request.auth.token.email;
 
       allow read: if signedIn()
         && (request.auth.uid == userId || isAdmin());
 
-      allow update: if isAdmin()
-        || (signedIn()
-          && request.auth.uid == userId
-          && request.resource.data.role == resource.data.role);
+      allow update: if signedIn()
+        && request.auth.uid == userId
+        && request.resource.data.role == resource.data.role;
 
       allow delete: if isAdmin();
     }
 
-
-    match /settings/{settingsId} {
-      // Course configuration is safe for signed-in users to read.
-      // Only admins may create or change it. This avoids permission errors
-      // when an admin session is loading the settings page.
-      allow read: if signedIn();
-      allow create, update, delete: if isAdmin();
-    }
-
     match /videos/{videoId} {
-      // Guests may retrieve lessons explicitly marked as Guest intro.
+      // Guests may retrieve ONLY the explicitly marked intro lesson.
       // Registered users and admins may retrieve all lesson metadata.
       allow read: if signedIn()
         && (
