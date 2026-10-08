@@ -164,11 +164,21 @@ A normal user cannot promote themselves because the Firestore rule requires the 
 
 # 5. Add lessons
 
-Admin → Add lesson. Upload each video to Cloudflare Stream first, set its protected playback settings as described below, then enter its Stream UID:
+Admin → Add lesson.
+
+For YouTube mode:
+
+```text
+youtubeId = dQw4w9WgXcQ
+```
+
+For Cloudflare Stream mode:
 
 ```text
 videoId = your Cloudflare Stream UID
 ```
+
+You can keep both IDs on a lesson if you want to switch providers later.
 
 Exactly one lesson should normally have:
 
@@ -178,29 +188,74 @@ isIntro = true
 
 ---
 
-# 6. Protected playback with Cloudflare Stream
+# 6. Option A — YouTube
+
+Default:
+
+```env
+VITE_VIDEO_PROVIDER=youtube
+```
+
+The player uses:
+
+```text
+https://www.youtube-nocookie.com/embed/VIDEO_ID?modestbranding=1&rel=0
+```
+
+This provides privacy-enhanced embedding but **does not provide true content access control**.
+
+Use this when convenience is more important than preventing sharing.
+
+---
+
+# 7. Option B — stronger protection with Cloudflare Stream
 
 Set:
 
 ```env
+VITE_VIDEO_PROVIDER=cloudflare
 VITE_VIDEO_TOKEN_ENDPOINT=https://YOUR-VIDEO-AUTH-DOMAIN.example/token
 ```
 
-Playback is now Cloudflare Stream only. YouTube embedding, direct video URLs, and copy/open video-link controls are not used by the learner player. If protected playback is not configured, the player fails closed rather than falling back to YouTube.
+The browser requests authorization for the specific video.
 
-Upload course videos to Cloudflare Stream and, for every video, set `requireSignedURLs` to `true` and restrict `allowedOrigins` to the course site's hostname. Store only its Stream UID in the lesson's `videoId` field. Existing YouTube IDs cannot be hidden or made site-only; replace those videos with protected Stream uploads.
+The authorization service should:
 
-Existing Firestore lesson documents may still contain `youtubeId` or `videoUrl`. Clear those legacy fields from every document (or open and save each lesson in Admin after adding its Stream UID); otherwise signed-in users with Firestore read access can inspect that metadata even though the player will not use it.
+1. Receive the Firebase ID token.
+2. Verify the Firebase token server-side.
+3. Identify the Firebase UID.
+4. Reject anonymous users for locked lessons.
+5. Confirm the requested Stream UID is an allowed course lesson.
+6. Generate a short-lived Cloudflare Stream signed playback token.
+7. Return only the short-lived playback URL.
 
-Deploy the Worker in `functions/src/token-endpoint.example.js` and configure its Firebase and Cloudflare secrets as described in [functions/README.md](./functions/README.md). The Worker verifies Firebase ID tokens, relies on Firestore rules to authorize lesson reads, checks that the Stream asset is private and restricted to the site origin, and issues a one-hour non-downloadable signed playback token.
+The signing key belongs in the backend secret store.
 
-These controls prevent ordinary public playback and sharing, not screen recording or a determined viewer inspecting a temporary token in their browser. Web playback cannot provide absolute copy prevention.
+### Never do this
 
-The Worker configuration, video privacy requirements, and limitations are documented in [functions/README.md](./functions/README.md).
+```env
+VITE_CLOUDFLARE_SIGNING_SECRET=...
+```
+
+Anything beginning with `VITE_` can be shipped to browsers.
+
+The reference architecture is in:
+
+```text
+functions/src/token-endpoint.example.js
+```
+
+and the implementation guidance is in:
+
+```text
+functions/README.md
+```
+
+For production, I recommend a Cloudflare Worker or another server-side endpoint rather than attempting to sign playback URLs in GitHub Pages.
 
 ---
 
-# 7. Custom GitHub Pages domain
+# 8. Custom GitHub Pages domain
 
 GitHub Pages supports a custom domain.
 
@@ -248,7 +303,7 @@ Firebase Console → Authentication → Settings → Authorized domains.
 
 ---
 
-# 8. GitHub Actions deployment
+# 9. GitHub Actions deployment
 
 This version uses:
 
@@ -281,19 +336,32 @@ VITE_FIREBASE_MESSAGING_SENDER_ID
 VITE_FIREBASE_APP_ID
 ```
 
-### Required repository variable
+### Optional repository variables
 
 Settings → Secrets and variables → Actions → Variables:
 
 ```text
+VITE_VIDEO_PROVIDER
 VITE_VIDEO_TOKEN_ENDPOINT
 ```
 
-The token endpoint URL is public configuration; Cloudflare credentials belong only in the Worker secret store. If this variable is absent, video playback intentionally fails closed.
+For example:
+
+```text
+VITE_VIDEO_PROVIDER = youtube
+```
+
+or:
+
+```text
+VITE_VIDEO_PROVIDER = cloudflare
+```
+
+Do not store video signing secrets in GitHub Pages variables. Those values belong in your server-side video authorization service.
 
 ---
 
-# 9. GitHub repository setup
+# 10. GitHub repository setup
 
 ```bash
 git init
@@ -310,7 +378,7 @@ You no longer need the old `npm run deploy` workflow, although the package still
 
 ---
 
-# 10. GitHub Pages routing
+# 11. GitHub Pages routing
 
 The application uses React Router with BrowserRouter.
 
@@ -326,7 +394,7 @@ The application also restores the requested route.
 
 ---
 
-# 11. Data model
+# 12. Data model
 
 ## users/{uid}
 
@@ -341,17 +409,24 @@ createdAt: timestamp
 
 ```text
 title: string
+lessonDate: string        # YYYY-MM-DD; legacy `date` is also recognized
+youtubeId: string
 videoId: string
+videoUrl: string
 description: string
 order: number
 isIntro: boolean
 ```
 
-Only Cloudflare Stream UIDs are used for protected playback. Remove any legacy `youtubeId` and public `videoUrl` fields from existing lesson documents.
+`lessonDate` is the learner-facing folder/day. The lessons page groups records into date folders and sorts the newest dates first, with lesson `order` used within a day.
+
+Existing records do not need to be migrated immediately. Records without `lessonDate` remain available in an `Unscheduled` folder until an admin assigns a date.
+
+`youtubeId` is used by YouTube mode. `videoId` is used by Cloudflare Stream mode. `videoUrl` can retain a full video URL already stored in Firestore; YouTube URLs are normalized to an embeddable video ID by the frontend.
 
 ---
 
-# 12. Production security checklist
+# 13. Production security checklist
 
 Before launch:
 
@@ -365,18 +440,36 @@ Before launch:
 - [ ] Add GitHub Actions Firebase secrets.
 - [ ] Configure custom domain.
 - [ ] Add custom domain to Firebase Authorized Domains.
-- [ ] Deploy the Cloudflare Stream token endpoint.
-- [ ] Upload videos to Stream and enable `requireSignedURLs`.
-- [ ] Restrict every video's `allowedOrigins` to the course site hostname.
-- [ ] Set the GitHub Actions variable `VITE_VIDEO_TOKEN_ENDPOINT`.
-- [ ] Keep Cloudflare credentials server-side.
-- [ ] Use short-lived, non-downloadable video tokens.
+- [ ] If using Cloudflare Stream, deploy the server-side token endpoint.
+- [ ] Keep all signing secrets server-side.
+- [ ] Use short-lived video tokens.
 - [ ] Do not rely on hidden UI buttons for authorization.
 - [ ] Do not put service-account credentials in the React application.
 
 ---
 
-# 13. What I need from you later
+# 14. Course organization and Admin console
+
+The learner view is organized as date folders:
+
+- Each unique `lessonDate` becomes a selectable folder.
+- Folders are sorted by date, newest first.
+- Selecting a folder shows only that day's lessons.
+- Lessons inside a day are sorted by `order`.
+- Undated legacy lessons appear under `Unscheduled`.
+
+The Admin console now includes:
+
+- Lesson date assignment and editing.
+- Search across title, description, and video source.
+- Date filtering.
+- Course statistics (lessons, days, guest intro, unscheduled).
+- Multi-select and bulk deletion.
+- Lesson duplication for quickly creating similar lessons.
+- Folder-style grouping matching the learner view.
+- Support for an existing full `videoUrl` stored in Firestore in addition to the existing YouTube/Cloudflare ID fields.
+
+# 15. What I need from you later
 
 When you're ready, provide the Firebase Web App configuration values:
 
@@ -395,7 +488,7 @@ I can then prepare the project configuration around your actual Firebase project
 
 ---
 
-# 14. Build
+# 15. Build
 
 ```bash
 npm run build
@@ -409,3 +502,14 @@ dist/
 ```
 
 For GitHub Actions, push to `main` and the workflow handles the deployment.
+
+
+## Firebase security rules
+
+The included `firestore.rules` recognizes the configured admin email (`ovsiankinna@gmail.com`) as an admin in addition to users whose Firestore profile has `role: "admin"`. If you change the admin email, update both `firestore.rules` and `src/App.jsx` / `src/components/Settings.jsx`.
+
+After uploading this project, deploy the Firestore rules to the same Firebase project. GitHub Pages deployment does not automatically deploy Firestore rules.
+
+## Admin authorization
+
+Admin/user authorization is controlled solely by Firebase Authentication custom claims. The app checks the Firebase ID token's `admin` claim, and Firestore rules use `request.auth.token.admin == true`. No email address or Firestore `users/{uid}.role` value grants admin access. See `scripts/README.md` for the one-time claim setup procedure.
